@@ -1,6 +1,7 @@
 from utils.players import BasePlayer, UserPlayer
 from utils.helpers import State, Graph
 
+
 class Game:
     """ Scotland Yard game logic and flow. """
 
@@ -54,21 +55,74 @@ class Game:
         self.state = State(graph)
 
 
-    def reset_state(self) -> None:
-        """ Reset the game state to its starting form. """
+    def play(self) -> str:
+        """
+        Start a new game.
+
+        Returns:
+              The team who won, either "Mr. X" or "Detectives".
+        """
 
         self.state.reset_game_state()
+        round_count = 0
+        winner = None
 
+        print(f'-------------------')
+        for s in 'xrgbop':
+            print(
+                f'{s.upper()}: {self.state.positions[s]} | T: {self.state.tickets[s]["taxi"]}, B: {self.state.tickets[s]["bus"]}, M: {self.state.tickets[s]["metro"]}, F: {self.state.tickets[s]["black"]}, D: {self.state.tickets[s]["double"]}')
+        print(f'-------------------')
 
-    def check_if_caught(self):
-        pass
+        while winner is None:
+            round_count += 1
+            print(f'\n\n==[ Round {round_count} ]==')
 
+            x_ticket, x_node = self.mr_x.make_move(self.state)
+            if x_ticket == 'double':
+                self.state.update_use_double_ticket()
+                print(f'> Mr. X used double-move ticket.')
 
-    def make_move(self, player):
-        pass
+                x_ticket, x_node = self.mr_x.make_move(self.state, can_use_double = False)
+                print(f'~-> Mr. X used {x_ticket} to move from {self.state.positions["x"]} to {x_node}.')
+                self.state.update_after_move('x', x_node, x_ticket)
+                x_ticket, x_node = self.mr_x.make_move(self.state, can_use_double = False)
+                print(f'~-> Mr. X used {x_ticket} to move from {self.state.positions["x"]} to {x_node}.')
+                self.state.update_after_move('x', x_node, x_ticket)
 
+            else:
+                print(f'> Mr. X used {x_ticket} to move from {self.state.positions["x"]} to {x_node}.')
+                self.state.update_after_move('x', x_node, x_ticket)
 
-    def play(self) -> None:
-        """ A """
+            d_move_count = 0
+            for detective in self.detectives:
+                d_ticket, d_node = detective.make_move(self.state)
+                if d_node is None:
+                    print(f'> Detective {detective.name.upper()} has no legal moves.')
+                    continue
+
+                d_move_count += 1
+                print(f'> Detective {detective.name.upper()} used {d_ticket} to move from {self.state.positions[detective.name]} to {d_node}.')
+                self.state.update_after_move(detective.name, d_node, d_ticket)
+
+                if self.state.check_caught(detective.name):
+                    print(f'~-> Detectives caught Mr. X!')
+                    winner = 'Detectives'
+                    break
+
+            if winner:
+                break
+
+            if self.state.check_cornered():
+                print(f'~-> Detectives cornered Mr. X!')
+                winner = 'Detectives'
+                break
+
+            if round_count == 22 or d_move_count == 0:
+                print(f'~-> Mr. X evaded the Detectives!')
+                winner = 'Mr. X'
+                break
+
+        return winner
+
 
 __all__ = ["Game"]

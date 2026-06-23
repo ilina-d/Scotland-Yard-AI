@@ -1,4 +1,6 @@
 # TODO
+- Add player that prefers unexplored nodes.
+- Add player that moves towards Mr. X's last known location.
 - Add visuals.
 
 ---
@@ -12,8 +14,8 @@
 ---
 
 # Latest Changes
-Started implementing game logic and basic classes.
-- Implemented the `State` class.
-- Implemented the `Graph` class.
-- Started working on the `Game` class.
-- Added a simple test graph csv.
+Implemented game logic.
+- Fully implemented `Game`.
+- Fully implemented `State`.
+- Fully implemented `BasePlayer` and `RandomPlayer`.
+- Updated TODO.
