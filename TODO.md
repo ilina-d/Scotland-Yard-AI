@@ -1,5 +1,7 @@
 # TODO
-- Add player that prefers unexplored nodes.
+- Implement Neo4j Aura support:
+  - Check if graph is loaded into database, load it if not.
+  - Replace existing `graph.py` logic with neo4j queries.
 - Add player that moves towards Mr. X's last known location.
 - Add visuals.
 
@@ -14,8 +16,10 @@
 ---
 
 # Latest Changes
-Implemented game logic.
-- Fully implemented `Game`.
-- Fully implemented `State`.
-- Fully implemented `BasePlayer` and `RandomPlayer`.
+Started implementation of Neo4j for graph operations.
+- Implemented `ExplorerPlayer`.
+- Began implementing Neo4j Aura support.
+  - Added `.env` file for credentials.
+  - Updated `Graph` to check credentials and connect to the database on initialization.
+- Updated `requirements.txt`.
 - Updated TODO.

@@ -1,14 +1,14 @@
 from utils.game import Game
-from utils.players import RandomPlayer
+from utils.players import RandomPlayer, ExplorerPlayer
 from utils.helpers import Graph
 
 
 game = Game(
-    detective_r = RandomPlayer('r'),
-    detective_g = RandomPlayer('g'),
-    detective_b = RandomPlayer('b'),
-    detective_o = RandomPlayer('o'),
-    detective_p = RandomPlayer('p'),
+    detective_r = ExplorerPlayer('r'),
+    detective_g = ExplorerPlayer('g'),
+    detective_b = ExplorerPlayer('b'),
+    detective_o = ExplorerPlayer('o'),
+    detective_p = ExplorerPlayer('p'),
     mr_x = RandomPlayer('x')
 )
 

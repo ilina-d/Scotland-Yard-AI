@@ -1,40 +1,62 @@
+from dotenv import load_dotenv
+from neo4j import GraphDatabase, RoutingControl
+import os
+
+
+
+print(f'loaded database: {os.getenv("blabla")}')
+
+
 class Graph:
     """ Game board representation as a graph. """
 
-    taxi_routes: dict[int, set[int]] = {}
-    bus_routes: dict[int, set[int]] = {}
-    metro_routes: dict[int, set[int]] = {}
-    ferry_routes: dict[int, set[int]] = {}
-
-
-    def __init__(self, graph_file: str, first_node: int, last_node: int) -> None:
+    def __init__(self, graph_file: str) -> None:
         """
-        Build a new graph object from a csv file.
+        Build the graph object from a csv file using Neo4j.
+
+        Database Setup:
+            Initializing an object of this class attempts to connect to a Neo4j Aura instance.
+            Make sure you have the appropriate credentials inside the `.env` file:
+            `NEO4J_URI`, `NEO4J_USERNAME`, `NEO4J_PASSWORD`, `NEO4J_DATABASE`.
 
         Arguments:
             graph_file: The csv file where the graph data is stored.
-            first_node: The lower-inclusive bound of the nodes.
-            last_node: The upper-inclusive bound of the nodes.
         """
 
-        self.routes = {'taxi': self.taxi_routes, 'bus': self.bus_routes,
-                       'metro': self.metro_routes, 'ferry': self.ferry_routes}
+        load_dotenv()
+        self.db_uri = os.getenv('NEO4J_URI')
+        self.db_auth = (os.getenv('NEO4J_USERNAME'), os.getenv('NEO4J_PASSWORD'))
+        self.db_name = os.getenv('NEO4J_DATABASE')
 
-        for route in self.routes.values():
-            for i in range(first_node, last_node + 1):
-                route[i] = set()
+        if self.db_uri is None or self.db_auth is None or self.db_name is None:
+            raise Exception('One or more Neo4j Aura credentials are missing from environment variables.')
 
-        with open(graph_file, 'r') as file:
-            for line in file.read().split('\n'):
-                if not line or line.startswith('#'):
-                    continue
+        self.db_driver = GraphDatabase.driver(self.db_uri, auth = self.db_auth)
 
-                n1, n2, route = line.split(',')
-                n1, n2 = int(n1), int(n2)
-                route = self.routes[route]
+        with self.db_driver as driver:
+            driver.verify_connectivity()
 
-                route[n1].add(n2)
-                route[n2].add(n1)
+        # TODO: Check if graph is loaded into database, load it if not
+        # TODO: Replace existing logic with Neo4j queries
+
+        # self.routes = {'taxi': self.taxi_routes, 'bus': self.bus_routes,
+        #                'metro': self.metro_routes, 'ferry': self.ferry_routes}
+        #
+        # for route in self.routes.values():
+        #     for i in range(first_node, last_node + 1):
+        #         route[i] = set()
+        #
+        # with open(graph_file, 'r') as file:
+        #     for line in file.read().split('\n'):
+        #         if not line or line.startswith('#'):
+        #             continue
+        #
+        #         n1, n2, route = line.split(',')
+        #         n1, n2 = int(n1), int(n2)
+        #         route = self.routes[route]
+        #
+        #         route[n1].add(n2)
+        #         route[n2].add(n1)
 
 
     def get_neighbors_by_route(self, node: int, route: str) -> set[int]:
