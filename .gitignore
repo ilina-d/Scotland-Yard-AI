@@ -1,3 +1,4 @@
 .env
 .env.*
 !.env.example
+database_config.json

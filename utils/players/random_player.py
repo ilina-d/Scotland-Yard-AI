@@ -7,8 +7,8 @@ import random
 class RandomPlayer(BasePlayer):
     """ Player agent making random moves. """
 
-    def make_move(self, state: State, can_use_double: bool = True) -> tuple[str, int | None]:
-        legal_moves = self.get_legal_moves(state, can_use_double)
+    def make_move(self, state: State) -> tuple[str, int | None]:
+        legal_moves = self.get_legal_moves(state)
 
         if legal_moves:
             return random.choice(legal_moves)

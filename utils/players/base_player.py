@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from utils.helpers import State
+from utils.helpers import State, Graph
 
 
 class BasePlayer(ABC):
@@ -14,15 +14,15 @@ class BasePlayer(ABC):
         """
 
         self.name = name
+        self.graph = Graph()
 
 
-    def get_legal_moves(self, state: State, can_use_double: bool) -> list[tuple[str, int | None]]:
+    def get_legal_moves(self, state: State) -> list[tuple[str, int | None]]:
         """
         Get the player's legal moves for the given state.
 
         Arguments:
              state: The current game state.
-             can_use_double: Whether the player is allowed to use a double move ticket.
 
         Returns:
             A list of ticket-destination tuples for all legal moves.
@@ -36,32 +36,26 @@ class BasePlayer(ABC):
         )
 
         for ticket, count in tickets.items():
-            if count == 0 or ticket in ('double', 'black'):
+            if count == 0 or ticket == 'double':
                 continue
 
-            for node in state.graph.get_neighbors_by_route(position, ticket):
+            for node in self.graph.get_reachable_neighbors_by_ticket(state, self.name, ticket):
                 if node not in detectives_pos:
                     legal_moves.append((ticket, node))
 
-        if can_use_double and tickets['double'] != 0:
+        if state.can_use_double and tickets['double'] != 0:
             legal_moves.append(('double', None))
-
-        if tickets['black'] != 0:
-            for node in state.graph.get_neighbors(position):
-                if node not in detectives_pos:
-                    legal_moves.append(('black', node))
 
         return legal_moves
 
 
     @abstractmethod
-    def make_move(self, state: State, can_use_double: bool = True) -> tuple[str, int | None]:
+    def make_move(self, state: State) -> tuple[str, int | None]:
         """
         Make a move on the game board.
 
         Arguments:
              state: The current game state.
-             can_use_double: Whether the player is allowed to use a double move ticket.
 
         Returns:
             The chosen move in ticket-destination format.

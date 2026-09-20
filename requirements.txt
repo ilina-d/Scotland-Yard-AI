@@ -1,3 +1,4 @@
 pygame
 neo4j
-python-dotenv
+torch
+torch-geometric

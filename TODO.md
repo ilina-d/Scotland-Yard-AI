@@ -1,9 +1,7 @@
 # TODO
-- Implement Neo4j Aura support:
-  - Check if graph is loaded into database, load it if not.
-  - Replace existing `graph.py` logic with neo4j queries.
-- Add player that moves towards Mr. X's last known location.
 - Add visuals.
+- Add player that moves towards Mr. X's last known location.
+- Implement GNN Players and Trainers.
 
 ---
 
@@ -16,10 +14,11 @@
 ---
 
 # Latest Changes
-Started implementation of Neo4j for graph operations.
-- Implemented `ExplorerPlayer`.
-- Began implementing Neo4j Aura support.
-  - Added `.env` file for credentials.
-  - Updated `Graph` to check credentials and connect to the database on initialization.
+Fully implemented game and database logic /wo visuals.
+- State now handles double ticket rules and round/step count instead of Game.
+- Implemented `Database` class that supports both Neo4j Aura and local instance access.
+- `Graph` now relies on `Database` and handles GNN input preparation.
+- Replaced the graphs folder with a single graph_data file located in helpers.
+- Updated Players to support the `State` changes.
 - Updated `requirements.txt`.
-- Updated TODO.
+- Updated `TODO.md`.

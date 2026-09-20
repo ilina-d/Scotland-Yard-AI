@@ -1,7 +1,5 @@
 import random
 
-from utils.helpers.graph import Graph
-
 
 class State:
     """ Representation of the game state. """
@@ -9,6 +7,9 @@ class State:
     positions: dict[str, int] = {'x': None, 'r': None, 'g': None, 'b': None, 'o': None, 'p': None}
     tickets: dict[str, dict[str, int]] = {'x': None, 'r': None, 'g': None, 'b': None, 'o': None, 'p': None}
     travel_logs: list[str | int] = []
+    reveal_logs: dict[int, str] = {}
+    can_use_double: bool = None
+    x_step_count: int = None
 
     X_STARTER_NODES = (35, 45, 51, 71, 78, 104, 106, 127, 132, 146, 166, 170, 172)
     D_STARTER_NODES = (13, 26, 29, 34, 50, 53, 91, 94, 103, 112, 117, 123, 138, 141, 155, 174)
@@ -17,10 +18,9 @@ class State:
     X_REVEAL_STEPS = (3, 8, 13, 18, 24)
 
 
-    def __init__(self, graph: Graph):
+    def __init__(self):
         """ Create and initialize a game state instance. """
 
-        self.graph = graph
         self.reset_game_state()
 
 
@@ -38,14 +38,26 @@ class State:
         self.tickets['o'] = self.D_STARTER_TICKETS.copy()
         self.tickets['p'] = self.D_STARTER_TICKETS.copy()
 
-
         self.travel_logs = []
+        self.can_use_double = True
+        self.x_step_count = 1
 
 
     def update_use_double_ticket(self) -> None:
         """ Update the game state after Mr. X uses a double move ticket. """
 
         self.tickets['x']['double'] -= 1
+
+
+    def update_double_ticket_permission(self, value: bool) -> None:
+        """
+        Update the can_use_double parameter with the given value.
+
+        Arguments:
+            value: True or False
+        """
+
+        self.can_use_double = value
 
 
     def update_after_move(self, player: str, destination_node: int, ticket_used: str) -> None:
@@ -64,8 +76,11 @@ class State:
         if player != 'x':
             return
 
-        if len(self.travel_logs) + 1 in self.X_REVEAL_STEPS:
+        self.x_step_count += 1
+
+        if self.x_step_count in self.X_REVEAL_STEPS:
             self.travel_logs.append(destination_node)
+            self.reveal_logs[self.x_step_count] = ticket_used
         else:
             self.travel_logs.append(ticket_used)
 
@@ -84,30 +99,14 @@ class State:
         return self.positions['x'] == self.positions[detective_name.lower()]
 
 
-    def check_cornered(self) -> bool:
-        """
-        Check whether Mr. X has been cornered by the detectives.
+    def get_steps_until_reveal(self) -> int:
+        """ Get the number of steps until Mr. X's next reveal. """
 
-        Returns:
-             Whether Mr. X is cornered.
-        """
+        steps = self.X_REVEAL_STEPS[self.x_step_count // 5] - self.x_step_count
+        if steps == -1:
+            steps = self.x_step_count // 19 + 4
 
-        detectives_pos = (
-            self.positions['r'], self.positions['g'], self.positions['b'], self.positions['o'], self.positions['p']
-        )
-
-        x_pos = self.positions['x']
-
-        nodes = self.graph.get_neighbors(x_pos)
-        if self.tickets['x']['black'] == 0:
-            ferry_nodes = self.graph.get_neighbors_by_route(x_pos, 'ferry')
-            nodes.difference_update(ferry_nodes)
-
-        for node in nodes:
-            if node not in detectives_pos:
-                return False
-
-        return True
+        return steps
 
 
 __all__ = ["State"]

@@ -9,8 +9,8 @@ class ExplorerPlayer(BasePlayer):
 
     seen_nodes: set[int] = set()
 
-    def make_move(self, state: State, can_use_double: bool = True) -> tuple[str, int | None]:
-        legal_moves = self.get_legal_moves(state, can_use_double)
+    def make_move(self, state: State) -> tuple[str, int | None]:
+        legal_moves = self.get_legal_moves(state)
 
         if not legal_moves:
             return '', None

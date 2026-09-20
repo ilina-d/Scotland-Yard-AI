@@ -1,6 +1,6 @@
 from utils.game import Game
 from utils.players import RandomPlayer, ExplorerPlayer
-from utils.helpers import Graph
+from utils.helpers import Graph, Database
 
 
 game = Game(
