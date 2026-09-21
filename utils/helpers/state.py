@@ -6,6 +6,9 @@ class State:
 
     positions: dict[str, int] = {'x': None, 'r': None, 'g': None, 'b': None, 'o': None, 'p': None}
     tickets: dict[str, dict[str, int]] = {'x': None, 'r': None, 'g': None, 'b': None, 'o': None, 'p': None}
+    current_player: str | None = None
+    winner: str | None = None
+
     travel_logs: list[str | int] = []
     reveal_logs: dict[int, str] = {}
     can_use_double: bool = None
@@ -29,6 +32,8 @@ class State:
 
         self.positions['x'] = random.choice(self.X_STARTER_NODES)
         self.tickets['x'] = self.X_STARTER_TICKETS.copy()
+        self.current_player = None
+        self.winner = None
 
         self.positions['r'], self.positions['g'], self.positions['b'], self.positions['o'], self.positions['p'] = \
             random.sample(self.D_STARTER_NODES, k = 5)
@@ -40,7 +45,32 @@ class State:
 
         self.travel_logs = []
         self.can_use_double = True
-        self.x_step_count = 1
+        self.x_step_count = 0
+
+
+    def set_winner(self, winner: str) -> None:
+        """
+        Set the game winner.
+
+        Arguments:
+            winner: The player who won ("x", "r", "g", "b", "o", or "p").
+        """
+
+        if winner == 'x':
+            self.winner = 'Mr. X'
+        else:
+            self.winner = 'Detectives'
+
+
+    def set_current_player(self, player: str) -> None:
+        """
+        Set the current player.
+
+        Arguments:
+            player: The player whose turn it is ("x", "r", "g", "b", "o", or "p").
+        """
+
+        self.current_player = player
 
 
     def update_use_double_ticket(self) -> None:

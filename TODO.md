@@ -1,5 +1,13 @@
 # TODO
-- Add visuals.
+- FIX: Clicking away while a ticket selection popup is open doesn't close the popup.
+- FIX: Reachable station indicators don't disappear as soon as the user makes their move.
+- FIX: There's currently no way for Mr. X to use a double ticket when controlled by a user.
+- Visual-related changes:
+  - Update `assets.UserTurn` with appropriate functions for cleaner updates from both `Game` and `Display`.
+  - When Mr. X is revealed, place a permanent indicator on his location.
+  - Add white outline on player tokens.
+  - If a detective controlled by a user has no valid moves, their turn is skipped without notice.
+  - Add game over screen.
 - Add player that moves towards Mr. X's last known location.
 - Implement GNN Players and Trainers.
 
@@ -14,11 +22,14 @@
 ---
 
 # Latest Changes
-Fully implemented game and database logic /wo visuals.
-- State now handles double ticket rules and round/step count instead of Game.
-- Implemented `Database` class that supports both Neo4j Aura and local instance access.
-- `Graph` now relies on `Database` and handles GNN input preparation.
-- Replaced the graphs folder with a single graph_data file located in helpers.
-- Updated Players to support the `State` changes.
-- Updated `requirements.txt`.
-- Updated `TODO.md`.
+Implemented game visuals.
+- Implemented `utils/display`:
+  - Added `assets.py` for variables related to visuals and a helper `UserTurn` class for handling user input.
+  - Added `Camera` for moving around and zooming in/out of the game board.
+  - Added `Display` for all visuals logic.
+- Updated `Game` to support the new visuals.
+- Added `always_show_x` argument to `Game` for debugging.
+- If any of the players are controlled by a user, the game must be run with `visuals` on.
+- `Game` and `Display` now handle `UserPlayer` logic for making moves.
+- `State` now tracks the `current_player` and `winner`.
+- Updated TODO.
