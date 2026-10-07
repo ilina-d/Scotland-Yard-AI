@@ -5,7 +5,6 @@
 - Visual-related changes:
   - Update `assets.UserTurn` with appropriate functions for cleaner updates from both `Game` and `Display`.
   - When Mr. X is revealed, place a permanent indicator on his location.
-  - Add white outline on player tokens.
   - If a detective controlled by a user has no valid moves, their turn is skipped without notice.
   - Add game over screen.
 - Add player that moves towards Mr. X's last known location.
@@ -22,14 +21,9 @@
 ---
 
 # Latest Changes
-Implemented game visuals.
-- Implemented `utils/display`:
-  - Added `assets.py` for variables related to visuals and a helper `UserTurn` class for handling user input.
-  - Added `Camera` for moving around and zooming in/out of the game board.
-  - Added `Display` for all visuals logic.
-- Updated `Game` to support the new visuals.
-- Added `always_show_x` argument to `Game` for debugging.
-- If any of the players are controlled by a user, the game must be run with `visuals` on.
-- `Game` and `Display` now handle `UserPlayer` logic for making moves.
-- `State` now tracks the `current_player` and `winner`.
+Started work on GNNs.
+- Implemented `BaseDetectiveNet`.
+- Started implementation of `BaseMrXNet`.
+- Added edge_type attribute to `graph.py`, for working with RGCNs.
+- Altered display to make player tokens more noticeable.
 - Updated TODO.

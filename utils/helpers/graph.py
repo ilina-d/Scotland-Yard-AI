@@ -34,7 +34,7 @@ class Graph:
     #
     # 12: Round number. (1 to 24 normalized)
     # 13: Number of rounds until Mr. X's next reveal. (0 to 5 normalized)
-    feature_shape_x: list[list[int | float]] = [[0] * 14] * num_nodes
+    feature_shape_x: list[list[int | float]] = [[0] * 14 for _ in range(num_nodes)]
 
     # Node features for Detective:
     # 0 : Is the Detective on this node? (0 or 1)
@@ -52,7 +52,7 @@ class Graph:
     #
     # 10: Round number. (1 to 24 normalized)
     # 11: Number of rounds until Mr. X's next reveal. (0 to 5 normalized)
-    feature_shape_d: list[list[int | float]] = [[0] * 12] * num_nodes
+    feature_shape_d: list[list[int | float]] = [[0] * 12 for _ in range(num_nodes)]
 
     def __new__(cls) -> 'Graph':
         """ Create and initialize a graph instance. """
@@ -64,6 +64,7 @@ class Graph:
 
         start_nodes = []
         end_nodes = []
+        route_attrs = []
         route_types = []
         route_encoder = {
             'taxi' : [1, 0, 0, 0],
@@ -81,19 +82,23 @@ class Graph:
                 n1, n2, route = line.split(',')
                 n1, n2 = int(n1), int(n2)
 
-                start_nodes.append(n1)
-                end_nodes.append(n2)
+                start_nodes.append(n1 - 1)
+                end_nodes.append(n2 - 1)
 
-                start_nodes.append(n2)
-                end_nodes.append(n1)
+                start_nodes.append(n2 - 1)
+                end_nodes.append(n1 - 1)
 
-                route_types.append(route_encoder[route])
-                route_types.append(route_encoder[route])
+                route_attrs.append(route_encoder[route])
+                route_attrs.append(route_encoder[route])
+
+                route_types.append(route_encoder[route].index(1))
+                route_types.append(route_encoder[route].index(1))
 
                 cls._instance._db_rows.append({'a' : n1, 'b' : n2, 'type' : route.strip()})
 
         cls._instance.edge_index = torch.tensor([start_nodes, end_nodes], dtype = torch.long)
-        cls._instance.edge_attr = torch.tensor(route_types, dtype = torch.float)
+        cls._instance.edge_attr = torch.tensor(route_attrs, dtype = torch.float)
+        cls._instance.edge_type = torch.tensor(route_types)
 
         cls._instance.db = Database()
         if not cls._instance.is_db_loaded():
@@ -301,7 +306,8 @@ class Graph:
         return Data(
             x = self.get_features_by_player(state, player),
             edge_index = self.edge_index,
-            edge_attr = self.edge_attr
+            edge_attr = self.edge_attr,
+            edge_type = self.edge_type,
         )
 
 

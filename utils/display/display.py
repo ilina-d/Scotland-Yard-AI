@@ -360,17 +360,17 @@ class Display:
                 continue
 
             sx, sy = sp
-            r = max(9, int(NODE_RADIUS * self.camera.zoom * 0.75))
+            r = max(20, int(NODE_RADIUS * self.camera.zoom))
             color = COLOR_PLAYER.get(name, (200, 200, 200))
 
-            pygame.draw.circle(self.screen, (0, 0, 0), (int(sx + 1), int(sy + 2)), r)
+            pygame.draw.circle(self.screen, COLOR_BLACK, (int(sx + 1), int(sy + 2)), r)
             pygame.draw.circle(self.screen, color, (int(sx), int(sy)), r)
             pygame.draw.circle(self.screen, (12, 12, 14), (int(sx), int(sy)), r, 2)
 
             if name == 'x':
                 d = r * 0.55
-                pygame.draw.line(self.screen, (235, 235, 240), (sx - d, sy - d), (sx + d, sy + d), 3)
-                pygame.draw.line(self.screen, (235, 235, 240), (sx - d, sy + d), (sx + d, sy - d), 3)
+                pygame.draw.line(self.screen, COLOR_WHITE, (sx - d, sy - d), (sx + d, sy + d), 3)
+                pygame.draw.line(self.screen, COLOR_WHITE, (sx - d, sy + d), (sx + d, sy - d), 3)
 
             else:
                 letter = name.upper()
