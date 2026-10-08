@@ -7,12 +7,12 @@ from utils.helpers import Graph, Database
 
 
 game = Game(
-    detective_r = UserPlayer('r'),
+    detective_r = ExplorerPlayer('r'),
     detective_g = ExplorerPlayer('g'),
     detective_b = ExplorerPlayer('b'),
     detective_o = ExplorerPlayer('o'),
     detective_p = ExplorerPlayer('p'),
-    mr_x = RandomPlayer('x'),
+    mr_x = UserPlayer('x'),
     always_show_x = False,
     visuals = True,
     wait_after_move = 400

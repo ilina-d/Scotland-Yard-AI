@@ -189,7 +189,7 @@ class Graph:
         features[x_node - 1][5] = int(state.can_use_double)
 
         # 6 : Do detectives think Mr X might be here? (0 or 1)
-        for node in self.get_potential_x_pos(...):
+        for node in self.get_potential_x_pos(state):
             features[node - 1][6] = 1
 
         # 7 : Is there a Detective on this node? (0 or 1)
@@ -222,7 +222,8 @@ class Graph:
     def _get_features_for_d(self, state: State, detective: str) -> list[list[int | float]]:
         """ Helper function to get a Detective's GNN input features. """
 
-        other_detectives_pos = {player: pos for player, pos in state.positions.items() if player != detective}
+        other_detectives_pos = {player: pos for player, pos in state.positions.items()
+                                if player != detective and player != 'x'}
         current_node = state.positions[detective]
         features = deepcopy(self.feature_shape_d)
 
@@ -234,7 +235,7 @@ class Graph:
             features[node - 1][1] = 1
 
         # 2 : Could Mr X be on this node? (0 or 1)
-        for node in self.get_potential_x_pos(...):
+        for node in self.get_potential_x_pos(state):
             features[node - 1][2] = 1
 
         # 3 : Is this node reachable with a taxi ticket? (0 or 1)
@@ -269,8 +270,8 @@ class Graph:
         # 11: Number of rounds until Mr. X's next reveal. (0 to 5 normalized)
         rounds_until_reveal = state.get_steps_until_reveal()
         for node in range(self.num_nodes):
-            features[node][12] = state.x_step_count / 24
-            features[node][13] = rounds_until_reveal / 5
+            features[node][10] = state.x_step_count / 24
+            features[node][11] = rounds_until_reveal / 5
 
         return features
 

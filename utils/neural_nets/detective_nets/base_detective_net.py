@@ -24,17 +24,15 @@ class BaseDetectiveNet(nn.Module):
         self.graph = Graph()
 
 
-    def load_weights(self, folder_name: str) -> None:
+    def load_weights(self, file_name: str) -> None:
         """
-        Load the weights from a pretrained network (at trained_nets/detective_nets/folder_name).
+        Load the weights from a pretrained network (at trained_nets/detective_nets/file_name.pt).
 
         Arguments:
-            folder_name: The folder name to load from.
+            file_name: The file name to load from.
         """
 
-        self.net.load_state_dict(torch.load(f'trained_nets/detective_nets/{folder_name}/net.pt', map_location=self.device))
-        self.policy_head.load_state_dict(torch.load(f'trained_nets/detective_nets/{folder_name}/policy.pt', map_location=self.device))
-        self.value_head.load_state_dict(torch.load(f'trained_nets/detective_nets/{folder_name}/value.pt', map_location=self.device))
+        self.load_state_dict(torch.load(f'trained_nets/detective_nets/{file_name}.pt', map_location=self.device))
 
 
     def forward(self, data: Data) -> tuple[torch.Tensor, torch.Tensor]:

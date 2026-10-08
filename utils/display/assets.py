@@ -88,6 +88,7 @@ class UserTurn:
     is_user_turn: bool = False
     player_name: str | None = None
     chosen_move: tuple[str, int | None] | None = None
+    using_double_ticket_counter: int = 0
 
     reachable_nodes: dict[int, list[str]] | None = None
     selected_node: int | None = None
@@ -112,6 +113,7 @@ class UserTurn:
         self.is_user_turn = False
         self.player_name = None
         self.chosen_move = None
+        self.using_double_ticket_counter = 0
         self.reachable_nodes = None
         self.selected_node = None
         self.is_popup_shown = False

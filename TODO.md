@@ -1,7 +1,4 @@
 # TODO
-- FIX: Clicking away while a ticket selection popup is open doesn't close the popup.
-- FIX: Reachable station indicators don't disappear as soon as the user makes their move.
-- FIX: There's currently no way for Mr. X to use a double ticket when controlled by a user.
 - Visual-related changes:
   - Update `assets.UserTurn` with appropriate functions for cleaner updates from both `Game` and `Display`.
   - When Mr. X is revealed, place a permanent indicator on his location.
@@ -21,9 +18,14 @@
 ---
 
 # Latest Changes
-Started work on GNNs.
-- Implemented `BaseDetectiveNet`.
-- Started implementation of `BaseMrXNet`.
-- Added edge_type attribute to `graph.py`, for working with RGCNs.
-- Altered display to make player tokens more noticeable.
+Updates and fixes to game and UI logic.
+- `Display` changes:
+  - Fixed popup for ticket selection not closing when clicking away.
+  - Fixed reachable station indicators not disappearing immediately after a move is made.
+  - Slightly decreased the size of the panel title.
+- Implemented logic in `Display` and `Game` allowing Mr. X to use double tickets when controlled by a user player.
+- `Graph` changes:
+  - Fixed placeholder calls to `get_potential_x_pos()` not passing the game state.
+  - Fixed incorrect detective positions in `_get_features_for_d()`.
+  - Fixed incorrect feature indices for detectives.
 - Updated TODO.

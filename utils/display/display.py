@@ -59,12 +59,15 @@ class Display:
         self.paused_for_input = False
         self.paused_time_left = 0
         self.user_turn = UserTurn()
+        self.double_ticket_button = pygame.Rect(0, 0, 0, 0)
 
 
     def _commit_move(self, destination: int, chosen_ticket: str) -> None:
         """ Helper function for saving the user's chosen move. """
 
         self.user_turn.chosen_move = (chosen_ticket, destination)
+        if chosen_ticket != 'double':
+            self.user_turn.reachable_nodes = None
         self.hide_popup()
         self.start_wait_after_move()
 
@@ -180,6 +183,11 @@ class Display:
         """ Helper function for handling left clicks. """
 
         if self.user_turn.is_user_turn:
+            if self._is_double_ticket_usable() and self.double_ticket_button.collidepoint(pos):
+                self._commit_move(destination = -1, chosen_ticket = 'double')
+                self.hide_popup()
+                return
+
             if self.user_turn.is_popup_shown:
                 idx = self._is_pos_in_popup(pos)
                 if idx >= 0:
@@ -189,6 +197,8 @@ class Display:
                     )
                     self.hide_popup()
                     return
+
+                self.hide_popup()
 
             selected_node = self.get_node_near_pos(pos)
             if selected_node and selected_node in self.user_turn.reachable_nodes:
@@ -403,7 +413,6 @@ class Display:
 
         title = self.FONT_TITLE.render('Scotland Yard', True, COLOR_TEXT_HEADER)
         self.screen.blit(title, (x, y))
-        y += 28
 
         if self.state.winner:
             surf = self.FONT_BODY.render(f'Winner: {self.state.winner}', True, COLOR_TEXT_HEADER)
@@ -494,6 +503,17 @@ class Display:
         for ticket in ('black', 'double'):
             bx = self._badge(bx, cy, ticket, tickets.get(ticket, 0))
 
+        self.double_ticket_button = pygame.Rect(bx, cy - 14, 80, 28)
+        if self._is_double_ticket_usable():
+            fill, border, text_color = COLOR_PANEL_SECTION, COLOR_TICKET['double'], COLOR_TEXT
+        else:
+            fill, border, text_color = COLOR_PANEL_SECTION, COLOR_PANEL_BORDER, COLOR_TEXT_MUTED
+
+        pygame.draw.rect(self.screen, fill, self.double_ticket_button, border_radius = 5)
+        pygame.draw.rect(self.screen, border, self.double_ticket_button, 2, border_radius = 5)
+        surf = self.FONT_BOLD.render('Use Double', True, text_color)
+        self.screen.blit(surf, surf.get_rect(center = self.double_ticket_button.center))
+
         return y + row_h + 4
 
 
@@ -514,6 +534,13 @@ class Display:
         self.screen.blit(surf, surf.get_rect(center = rect.center))
 
         return x + w + 5
+
+
+    def _is_double_ticket_usable(self) -> bool:
+        """ Helper function for checking whether the user as Mr. X can currently use a double ticket. """
+
+        return self.user_turn.is_user_turn and self.user_turn.player_name == 'x' \
+            and self.state.can_use_double and self.state.tickets['x']['double'] != 0
 
 
     def _draw_x_log(self, x: float, y: float) -> None:

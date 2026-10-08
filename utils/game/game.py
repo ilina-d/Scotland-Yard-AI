@@ -138,6 +138,13 @@ class Game:
                 return
 
             ticket, node = self.display.user_turn.chosen_move
+            if ticket == 'double':
+                self.state.update_use_double_ticket()
+                self.state.update_double_ticket_permission(False)
+                self.display.user_turn.using_double_ticket_counter = 2
+                self.display.user_turn.chosen_move = None
+                return
+
             self.display.user_turn.is_user_turn = False
 
         else:
@@ -147,7 +154,6 @@ class Game:
             self.state.update_use_double_ticket()
             self.state.update_double_ticket_permission(False)
 
-            # TODO REMINDER: This would not work with a user player.
             t1, n1 = self.mr_x.make_move(self.state)
             self.state.update_after_move('x', n1, t1)
 
@@ -162,6 +168,15 @@ class Game:
         if self.state.x_step_count >= 24:
             self.state.set_winner('x')
             self._game_phase = 'over'
+            return
+
+        if self.display.user_turn.using_double_ticket_counter > 0:
+            self.display.user_turn.using_double_ticket_counter -= 1
+            self.display.user_turn.chosen_move = None
+
+        if self.display.user_turn.using_double_ticket_counter == 0:
+            self.state.update_double_ticket_permission(True)
+        else:
             return
 
         self._game_phase = 'd'
