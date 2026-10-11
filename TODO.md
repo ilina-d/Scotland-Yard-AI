@@ -4,8 +4,9 @@
   - When Mr. X is revealed, place a permanent indicator on his location.
   - If a detective controlled by a user has no valid moves, their turn is skipped without notice.
   - Add game over screen.
+  - Change the Mr. X travel log to clearly indicate at which moves he appears.
 - Add player that moves towards Mr. X's last known location.
-- Implement GNN Players and Trainers.
+- Implement GNN Trainers.
 
 ---
 
@@ -18,14 +19,8 @@
 ---
 
 # Latest Changes
-Updates and fixes to game and UI logic.
-- `Display` changes:
-  - Fixed popup for ticket selection not closing when clicking away.
-  - Fixed reachable station indicators not disappearing immediately after a move is made.
-  - Slightly decreased the size of the panel title.
-- Implemented logic in `Display` and `Game` allowing Mr. X to use double tickets when controlled by a user player.
-- `Graph` changes:
-  - Fixed placeholder calls to `get_potential_x_pos()` not passing the game state.
-  - Fixed incorrect detective positions in `_get_features_for_d()`.
-  - Fixed incorrect feature indices for detectives.
+Finished implementing the GNN structure.
+- Implemented base detective and Mr. X GNNs.
+- Implemented basic GNN structures for testing (`TestMrXNet` and `TestDetectiveNet`).
+- Implemented detective and Mr. X players that make moves based on a pretrained GNN policy.
 - Updated TODO.

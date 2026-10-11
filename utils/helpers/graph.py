@@ -15,6 +15,7 @@ class Graph:
     num_bus_edges: int = 99
     num_metro_edges: int = 20
     num_ferry_edges: int = 3
+    num_edge_types: int = 4
     graph_data_path: str = 'utils/helpers/graph_data.csv'
 
     # Node features for Mr. X:

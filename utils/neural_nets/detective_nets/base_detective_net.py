@@ -1,7 +1,7 @@
 from torch import nn
 import torch
 from torch.nn import functional as F
-from torch_geometric.nn import RGCNConv, GATConv, global_mean_pool
+from torch_geometric.nn import RGCNConv, GATConv
 from torch_geometric.data import Data
 from utils.helpers import Graph, State
 
@@ -13,15 +13,19 @@ class BaseDetectiveNet(nn.Module):
     NUM_TICKETS = 3
     TICKET_NAMES = ('taxi', 'bus', 'metro')
 
+    net_body: nn.ModuleList
+    policy_head: nn.ModuleList
+    value_head: nn.ModuleList
+
+
     def __init__(self) -> None:
         """ Create a new BaseDetectiveNet instance. """
 
         super().__init__()
-
-        self.net = None
-        self.policy_head = None
-        self.value_head = None
         self.graph = Graph()
+
+        self.IN_FEATURES = len(self.graph.feature_shape_d[0])
+        self.NUM_RELATIONS = self.graph.num_edge_types
 
 
     def load_weights(self, file_name: str) -> None:
@@ -32,15 +36,23 @@ class BaseDetectiveNet(nn.Module):
             file_name: The file name to load from.
         """
 
-        self.load_state_dict(torch.load(f'trained_nets/detective_nets/{file_name}.pt', map_location=self.device))
+        self.load_state_dict(torch.load(f'trained_nets/detective_nets/{file_name}.pt', map_location = self.device))
+
+
+    @staticmethod
+    def _masked_mean(tensor: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
+        """ Helper function for computing a masked mean over the given tensor. """
+
+        mask = mask.float().unsqueeze(-1)
+        return (tensor * mask).sum(dim = 0, keepdim = True) / mask.sum().clamp(min = 1)
 
 
     def forward(self, data: Data) -> tuple[torch.Tensor, torch.Tensor]:
-        """ Send an input though the net and get an output consisting of the policy and value. """
+        """ Process the given input through each of the network's layers. """
 
         outputs, edge_index, edge_attr, edge_type = data.x, data.edge_index, data.edge_attr, data.edge_type
 
-        for layer in self.net:
+        for layer in self.net_body:
             if isinstance(layer, RGCNConv):
                 outputs = layer(outputs, edge_index, edge_type)
             elif isinstance(layer, GATConv):
@@ -48,18 +60,20 @@ class BaseDetectiveNet(nn.Module):
             else:
                 outputs = layer(outputs)
 
-        policy_logits = outputs
+        policy_output = outputs
         for layer in self.policy_head:
-            policy_logits = layer(policy_logits)
-        policy_logits = policy_logits.squeeze(-1)
+            policy_output = layer(policy_output)
 
-        pooled = global_mean_pool(outputs, batch=None)
-        value = pooled
+        self_emb = outputs[data.x[:, 0] == 1]
+        det_mean = self._masked_mean(outputs, data.x[:, 1] == 1)
+        mrx_mean = self._masked_mean(outputs, data.x[:, 2] == 1)
+
+        value_output = torch.cat([self_emb, det_mean, mrx_mean], dim = -1)
         for layer in self.value_head:
-            value = layer(value)
-        value = value.squeeze(-1)
+            value_output = layer(value_output)
+        value_output = value_output.squeeze(-1)
 
-        return policy_logits, value
+        return policy_output, value_output
 
 
     def get_distribution_policy(self, state: State, player: str) -> list[tuple[int, str, torch.Tensor]]:
@@ -77,7 +91,7 @@ class BaseDetectiveNet(nn.Module):
         data = self.graph.get_gnn_input(state, player).to(self.device)
         outputs = self.forward(data)[0]
 
-        legal_mask = torch.zeros(self.graph.num_nodes, self.NUM_TICKETS, dtype=torch.bool, device=self.device)
+        legal_mask = torch.zeros(self.graph.num_nodes, self.NUM_TICKETS, dtype = torch.bool, device = self.device)
         detectives_pos = {state.positions[d] for d in ('r', 'g', 'b', 'o', 'p')}
 
         for t, ticket in enumerate(self.TICKET_NAMES):
@@ -88,10 +102,12 @@ class BaseDetectiveNet(nn.Module):
                     legal_mask[node - 1, t] = True
 
         legal_mask = legal_mask.flatten()
-        outputs = outputs.flatten()
+        if not legal_mask.any():
+            return []
 
+        outputs = outputs.flatten()
         outputs = outputs.masked_fill(~legal_mask, float('-inf'))
-        probs = F.log_softmax(outputs, dim=0)
+        probs = F.log_softmax(outputs, dim = 0)
 
         actions = []
         for node in range(1, self.graph.num_nodes + 1):
@@ -119,7 +135,7 @@ class BaseDetectiveNet(nn.Module):
         return float(output.item())
 
 
-    def get_action(self, state: State, player: str) -> tuple[str, int]:
+    def get_action(self, state: State, player: str) -> tuple[str, int | None]:
         """
         Get the best action for the detective the given state.
 
@@ -132,8 +148,13 @@ class BaseDetectiveNet(nn.Module):
         """
 
         distribution = self.get_distribution_policy(state, player)
-        best_action = max(distribution, key=lambda x: x[2].item())
-        return best_action[1], best_action[0]
+        if len(distribution) == 0:
+            return '', None
+
+        probs = torch.stack([item[2] for item in distribution])
+        node, ticket = divmod(probs.argmax().item(), self.NUM_TICKETS)
+
+        return self.TICKET_NAMES[ticket], node + 1
 
 
 __all__ = ['BaseDetectiveNet']

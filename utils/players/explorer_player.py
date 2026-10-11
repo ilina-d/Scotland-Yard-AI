@@ -31,4 +31,5 @@ class ExplorerPlayer(BasePlayer):
         self.seen_nodes.add(node)
         return ticket, node
 
+
 __all__ = ['ExplorerPlayer']
