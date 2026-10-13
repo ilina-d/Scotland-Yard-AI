@@ -1,10 +1,10 @@
 # TODO
 - Visual-related changes:
-  - Update `assets.UserTurn` with appropriate functions for cleaner updates from both `Game` and `Display`.
   - When Mr. X is revealed, place a permanent indicator on his location.
   - If a detective controlled by a user has no valid moves, their turn is skipped without notice.
   - Add game over screen.
   - Change the Mr. X travel log to clearly indicate at which moves he appears.
+  - Add control hints (SPACE for un-pausing wait after turn).
 - Add player that moves towards Mr. X's last known location.
 - Implement GNN Trainers.
 
@@ -19,8 +19,6 @@
 ---
 
 # Latest Changes
-Finished implementing the GNN structure.
-- Implemented base detective and Mr. X GNNs.
-- Implemented basic GNN structures for testing (`TestMrXNet` and `TestDetectiveNet`).
-- Implemented detective and Mr. X players that make moves based on a pretrained GNN policy.
+Code clean up.
+- Minor code clean up in `Assets`, `Camera`, `Display` and `Game`.
 - Updated TODO.

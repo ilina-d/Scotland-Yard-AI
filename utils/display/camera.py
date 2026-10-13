@@ -18,7 +18,7 @@ class Camera:
         self.map_w, self.map_h = map_w, map_h
         self.viewport_w, self.viewport_h = viewport_w, viewport_h
         self.min_zoom = self._get_min_zoom(viewport_w, viewport_h)
-        self.zoom = self.min_zoom
+        self.current_zoom = self.min_zoom
         self.max_zoom = MAX_ZOOM
         self.x = 0.0
         self.y = 0.0
@@ -34,7 +34,7 @@ class Camera:
     def get_visible_map_dims(self) -> tuple[float, float]:
         """ Calculate the current visible portion of the map. """
 
-        return self.viewport_w / self.zoom, self.viewport_h / self.zoom
+        return self.viewport_w / self.current_zoom, self.viewport_h / self.current_zoom
 
 
     def _clip_if_out_of_bounds(self) -> None:
@@ -59,7 +59,7 @@ class Camera:
             The corresponding coordinates on the screen.
         """
 
-        return (mx - self.x) * self.zoom, (my - self.y) * self.zoom
+        return (mx - self.x) * self.current_zoom, (my - self.y) * self.current_zoom
 
 
     def screen_to_map(self, sx: float, sy: float) -> tuple[float, float]:
@@ -74,7 +74,7 @@ class Camera:
             The corresponding coordinates on the map.
         """
 
-        return self.x + sx / self.zoom, self.y + sy / self.zoom
+        return self.x + sx / self.current_zoom, self.y + sy / self.current_zoom
 
 
     def pan(self, dx: float, dy: float) -> None:
@@ -86,12 +86,12 @@ class Camera:
             dy: y coordinate delta.
         """
 
-        self.x -= dx / self.zoom
-        self.y -= dy / self.zoom
+        self.x -= dx / self.current_zoom
+        self.y -= dy / self.current_zoom
         self._clip_if_out_of_bounds()
 
 
-    def zoom_at(self, screen_pos: tuple[float, float], factor: float) -> None:
+    def zoom(self, screen_pos: tuple[float, float], factor: float) -> None:
         """
         Zoom in or out of the given point.
 
@@ -103,20 +103,20 @@ class Camera:
         sx, sy = screen_pos
         map_x, map_y = self.screen_to_map(sx, sy)
 
-        new_zoom = min(max(self.zoom * factor, self.min_zoom), self.max_zoom)
-        if new_zoom == self.zoom:
+        new_zoom = min(max(self.current_zoom * factor, self.min_zoom), self.max_zoom)
+        if new_zoom == self.current_zoom:
             return
 
-        self.zoom = new_zoom
-        self.x = map_x - sx / self.zoom
-        self.y = map_y - sy / self.zoom
+        self.current_zoom = new_zoom
+        self.x = map_x - sx / self.current_zoom
+        self.y = map_y - sy / self.current_zoom
         self._clip_if_out_of_bounds()
 
 
     def reset(self) -> None:
         """ Reset the camera's position. """
 
-        self.zoom = self.min_zoom
+        self.current_zoom = self.min_zoom
         self.x = 0.0
         self.y = 0.0
         self._clip_if_out_of_bounds()
@@ -137,7 +137,7 @@ class Camera:
 
         self.viewport_w, self.viewport_h = vw, vh
         self.min_zoom = self._get_min_zoom(vw, vh)
-        self.zoom = min(max(self.zoom, self.min_zoom), self.max_zoom)
+        self.current_zoom = min(max(self.current_zoom, self.min_zoom), self.max_zoom)
 
         nvw, nvh = self.get_visible_map_dims()
         self.x = cx - nvw / 2

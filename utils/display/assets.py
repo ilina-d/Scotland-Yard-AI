@@ -82,43 +82,22 @@ LABEL_PLAYER = {
 
 
 # Helper Classes
-class UserTurn:
+class UserControlsHelper:
     """ Helper class for handling user input during their turn. """
 
     is_user_turn: bool = False
     player_name: str | None = None
     chosen_move: tuple[str, int | None] | None = None
-    using_double_ticket_counter: int = 0
+
+    double_move_btn: _pg.Rect = _pg.Rect(0, 0, 0, 0)
+    double_move_count: int = 0
 
     reachable_nodes: dict[int, list[str]] | None = None
     selected_node: int | None = None
 
-    is_popup_shown: bool | None = False
-    popup_ticket_options: list[str] | None = None
-    popup_anchor_pos: tuple[float, float] | None = None
+    is_popup_shown: bool = False
+    popup_tickets: list[str] | None = None
+    popup_pos: tuple[float, float] | None = None
     popup_hover_idx: int | None = None
     popup_box: _pg.Rect | None = None
     popup_ticket_boxes: list[_pg.Rect] | None = None
-
-
-    def __init__(self) -> None:
-        """ Create and initialize a UserTurn instance. """
-
-        self.reset()
-
-
-    def reset(self) -> None:
-        """ Reset variables. """
-
-        self.is_user_turn = False
-        self.player_name = None
-        self.chosen_move = None
-        self.using_double_ticket_counter = 0
-        self.reachable_nodes = None
-        self.selected_node = None
-        self.is_popup_shown = False
-        self.popup_ticket_options = None
-        self.popup_anchor_pos = None
-        self.popup_hover_idx = None
-        self.popup_box = None
-        self.popup_ticket_boxes = None

@@ -58,16 +58,39 @@ class Display:
 
         self.paused_for_input = False
         self.paused_time_left = 0
-        self.user_turn = UserTurn()
-        self.double_ticket_button = pygame.Rect(0, 0, 0, 0)
+        self.user_controls = UserControlsHelper()
 
 
-    def _commit_move(self, destination: int, chosen_ticket: str) -> None:
+    @staticmethod
+    def _load_map_nodes() -> dict[int, dict[str, float]]:
+        """ Helper function for loading the station positions on the map. """
+
+        with open(MAP_NODES_PATH, 'r') as file:
+            data = json.load(file)
+
+        nodes_pos = {}
+        for entry in data:
+            nodes_pos[entry['id']] = {
+                'x': float(entry['x']),
+                'y': float(entry['y'])
+            }
+
+        return nodes_pos
+
+
+    @staticmethod
+    def _load_map_image() -> pygame.Surface:
+        """ Helper function for loading the game map image. """
+
+        return pygame.image.load(MAP_IMAGE_PATH).convert()
+
+
+    def _commit_move(self, destination: int | None, chosen_ticket: str) -> None:
         """ Helper function for saving the user's chosen move. """
 
-        self.user_turn.chosen_move = (chosen_ticket, destination)
+        self.user_controls.chosen_move = (chosen_ticket, destination)
         if chosen_ticket != 'double':
-            self.user_turn.reachable_nodes = None
+            self.user_controls.reachable_nodes = None
         self.hide_popup()
         self.start_wait_after_move()
 
@@ -97,30 +120,6 @@ class Display:
             self.paused_time_left = max(0.0, self.wait_after_move / 1000)
         else:
             self.paused_time_left = max(0.0, self.paused_time_left - dt)
-
-
-    @staticmethod
-    def _load_map_nodes() -> dict[int, dict[str, float]]:
-        """ Helper function for loading the station positions on the map. """
-
-        with open(MAP_NODES_PATH, 'r') as file:
-            data = json.load(file)
-
-        nodes_pos = {}
-        for entry in data:
-            nodes_pos[entry['id']] = {
-                'x' : float(entry['x']),
-                'y' : float(entry['y'])
-            }
-
-        return nodes_pos
-
-
-    @staticmethod
-    def _load_map_image() -> pygame.Surface:
-        """ Helper function for loading the game map image. """
-
-        return pygame.image.load(MAP_IMAGE_PATH).convert()
 
 
     def update_window_size(self, w: float, h: float) -> None:
@@ -161,7 +160,7 @@ class Display:
 
             elif event.type == pygame.MOUSEWHEEL and self.viewport_rect.collidepoint(mouse_pos):
                 factor = ZOOM_STEP if event.y > 0 else 1 / ZOOM_STEP
-                self.camera.zoom_at(mouse_pos, factor)
+                self.camera.zoom(mouse_pos, factor)
 
             elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 self._handle_left_click_start(event.pos)
@@ -173,27 +172,21 @@ class Display:
                 self._handle_left_click_complete(event.pos)
 
 
-    def _get_viewport_center_pos(self) -> tuple[float, float]:
-        """ Helper function for getting the viewport center coordinates. """
-
-        return self.viewport_w / 2, self.viewport_h / 2
-
-
     def _handle_left_click_start(self, pos: tuple[float, float]) -> None:
         """ Helper function for handling left clicks. """
 
-        if self.user_turn.is_user_turn:
-            if self._is_double_ticket_usable() and self.double_ticket_button.collidepoint(pos):
-                self._commit_move(destination = -1, chosen_ticket = 'double')
+        if self.user_controls.is_user_turn:
+            if self._is_double_ticket_usable() and self.user_controls.double_move_btn.collidepoint(pos):
+                self._commit_move(destination = None, chosen_ticket = 'double')
                 self.hide_popup()
                 return
 
-            if self.user_turn.is_popup_shown:
-                idx = self._is_pos_in_popup(pos)
-                if idx >= 0:
+            if self.user_controls.is_popup_shown:
+                idx = self._get_selected_popup_option(pos)
+                if idx is not None:
                     self._commit_move(
-                        destination = self.user_turn.selected_node,
-                        chosen_ticket = self.user_turn.popup_ticket_options[idx]
+                        destination = self.user_controls.selected_node,
+                        chosen_ticket = self.user_controls.popup_tickets[idx]
                     )
                     self.hide_popup()
                     return
@@ -201,9 +194,9 @@ class Display:
                 self.hide_popup()
 
             selected_node = self.get_node_near_pos(pos)
-            if selected_node and selected_node in self.user_turn.reachable_nodes:
-                self.user_turn.selected_node = selected_node
-                self.show_popup(selected_node, self.user_turn.reachable_nodes[selected_node])
+            if selected_node and selected_node in self.user_controls.reachable_nodes:
+                self.user_controls.selected_node = selected_node
+                self.show_popup(selected_node, self.user_controls.reachable_nodes[selected_node])
                 return
 
         if self.viewport_rect.collidepoint(pos):
@@ -231,7 +224,7 @@ class Display:
             self.last_mouse_pos = pos
 
         else:
-            self.popup_hover_idx = self._is_pos_in_popup(pos)
+            self.popup_hover_idx = self._get_selected_popup_option(pos)
 
 
     def _handle_left_click_complete(self, pos: tuple[float, float]) -> None:
@@ -240,22 +233,20 @@ class Display:
         was_click = not self.drag_moved
         self.dragging = False
         self.drag_moved = False
-        if was_click and self.user_turn.is_popup_shown and not self._is_pos_in_popup(pos):
-            if self.user_turn.is_user_turn:
-                self.user_turn.selected_node = None
+        if was_click and self.user_controls.is_popup_shown and not self._get_selected_popup_option(pos):
+            if self.user_controls.is_user_turn:
+                self.user_controls.selected_node = None
             self.hide_popup()
 
 
-    def _is_pos_in_popup(self, pos: tuple[float, float]) -> int:
-        """ Helper function for checking if the given position is inside a popup. """
+    def _get_selected_popup_option(self, pos: tuple[float, float]) -> int | None:
+        """ Helper function for getting the chosen ticket from the ticket selection popup. """
 
-        if self.user_turn.is_popup_shown:
+        if self.user_controls.is_popup_shown:
             rects = self._popup_option_rects()
             for i, r in enumerate(rects):
                 if r.collidepoint(pos):
                     return i
-
-        return -1
 
 
     def get_node_near_pos(self, pos: tuple[float, float]) -> int | None:
@@ -273,7 +264,7 @@ class Display:
             return None
 
         mx, my = self.camera.screen_to_map(pos[0], pos[1])
-        r = max(NODE_RADIUS, NODE_MIN_SCREEN_RADIUS / max(self.camera.zoom, 1e-6))
+        r = max(NODE_RADIUS, NODE_MIN_SCREEN_RADIUS / max(self.camera.current_zoom, 1e-6))
 
         best_id, best_d2 = None, r * r
         for nid, node in self.map_nodes.items():
@@ -334,14 +325,14 @@ class Display:
     def _draw_highlighted_nodes(self) -> None:
         """ Helper function for rendering highlighted nodes. """
 
-        if not self.user_turn.reachable_nodes:
+        if not self.user_controls.reachable_nodes:
             return
 
         pulse = 0.5 + 0.5 * math.sin(pygame.time.get_ticks() / 220.0)
         r = max(NODE_MIN_SCREEN_RADIUS + 4, NODE_RADIUS * self.camera.zoom + 6)
         ring_w = max(2, int(r * 0.16))
 
-        for nid in self.user_turn.reachable_nodes:
+        for nid in self.user_controls.reachable_nodes:
             sp = self.get_node_pos(nid)
             if sp is None:
                 continue
@@ -370,7 +361,7 @@ class Display:
                 continue
 
             sx, sy = sp
-            r = max(20, int(NODE_RADIUS * self.camera.zoom))
+            r = max(20, int(NODE_RADIUS * self.camera.current_zoom))
             color = COLOR_PLAYER.get(name, (200, 200, 200))
 
             pygame.draw.circle(self.screen, COLOR_BLACK, (int(sx + 1), int(sy + 2)), r)
@@ -393,7 +384,7 @@ class Display:
 
         pos = []
         for player, node in self.state.positions.items():
-            if player == 'x' and not self.always_show_x and self.user_turn.player_name != 'x':
+            if player == 'x' and not self.always_show_x and self.user_controls.player_name != 'x':
                 continue
             pos.append((player, node))
 
@@ -539,7 +530,7 @@ class Display:
     def _is_double_ticket_usable(self) -> bool:
         """ Helper function for checking whether the user as Mr. X can currently use a double ticket. """
 
-        return self.user_turn.is_user_turn and self.user_turn.player_name == 'x' \
+        return self.user_controls.is_user_turn and self.user_controls.player_name == 'x' \
             and self.state.can_use_double and self.state.tickets['x']['double'] != 0
 
 
@@ -592,11 +583,11 @@ class Display:
     def _popup_option_rects(self) -> list[pygame.Rect]:
         """ Helper function for rendering the popup ticket options. """
 
-        if not self.user_turn.is_user_turn:
+        if not self.user_controls.is_user_turn:
             return []
 
-        ax, ay = self.user_turn.popup_anchor_pos
-        ticket_options = self.user_turn.popup_ticket_options
+        ax, ay = self.user_controls.popup_pos
+        ticket_options = self.user_controls.popup_tickets
         w, row_h, pad, header_h = 150, 28, 8, 22
         total_h = header_h + len(ticket_options) * (row_h + 4) + pad
 
@@ -609,8 +600,8 @@ class Display:
         for i in range(len(ticket_options)):
             rects.append(pygame.Rect(x + pad, y + header_h + i * (row_h + 4), w - pad * 2, row_h))
 
-        self.user_turn.popup_box = pygame.Rect(x, y, w, total_h)
-        self.user_turn.popup_ticket_boxes = rects
+        self.user_controls.popup_box = pygame.Rect(x, y, w, total_h)
+        self.user_controls.popup_ticket_boxes = rects
 
         return rects
 
@@ -618,11 +609,11 @@ class Display:
     def _draw_popup(self) -> None:
         """ Helper function for rendering the ticket choice popup. """
 
-        if not self.user_turn.is_popup_shown:
+        if not self.user_controls.is_popup_shown:
             return
 
         rects = self._popup_option_rects()
-        box = self.user_turn.popup_box
+        box = self.user_controls.popup_box
 
         sh = pygame.Surface((box.w + 6, box.h + 6), pygame.SRCALPHA)
         pygame.draw.rect(sh, (0, 0, 0, 120), (0, 0, box.w + 6, box.h + 6), border_radius = 10)
@@ -634,7 +625,7 @@ class Display:
         header = self.FONT_BOLD.render('Pick Ticket:', True, COLOR_TEXT)
         self.screen.blit(header, (box.x + 10, box.y + 4))
 
-        for i, (r, ticket) in enumerate(zip(rects, self.user_turn.popup_ticket_options)):
+        for i, (r, ticket) in enumerate(zip(rects, self.user_controls.popup_tickets)):
             hovered = (i == self.popup_hover_idx)
             color = COLOR_POPUP_HOVER if hovered else COLOR_PANEL_SECTION
             pygame.draw.rect(self.screen, color, r, border_radius = 5)
@@ -666,23 +657,23 @@ class Display:
         if sp is None:
             return
 
-        self.user_turn.is_popup_shown = True
-        self.user_turn.selected_node = node_id
-        self.user_turn.popup_anchor_pos = sp
-        self.user_turn.popup_ticket_options = tickets
-        self.user_turn.popup_hover_idx = -1
+        self.user_controls.is_popup_shown = True
+        self.user_controls.selected_node = node_id
+        self.user_controls.popup_pos = sp
+        self.user_controls.popup_tickets = tickets
+        self.user_controls.popup_hover_idx = -1
 
 
     def hide_popup(self):
         """ Hide the ticket selection popup. """
 
-        self.user_turn.is_popup_shown = False
-        self.user_turn.selected_node = None
-        self.user_turn.popup_anchor_pos = None
-        self.user_turn.popup_ticket_options = None
-        self.user_turn.popup_hover_idx = -1
-        self.user_turn.popup_box = None
-        self.user_turn.popup_ticket_boxes = None
+        self.user_controls.is_popup_shown = False
+        self.user_controls.selected_node = None
+        self.user_controls.popup_pos = None
+        self.user_controls.popup_tickets = None
+        self.user_controls.popup_hover_idx = -1
+        self.user_controls.popup_box = None
+        self.user_controls.popup_ticket_boxes = None
 
 
 __all__ = ['Display']

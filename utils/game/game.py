@@ -113,7 +113,7 @@ class Game:
             self.display.update_paused_time(dt)
             return
 
-        if self.display.user_turn.is_user_turn and self.display.user_turn.chosen_move is None:
+        if self.display.user_controls.is_user_turn and self.display.user_controls.chosen_move is None:
             return
 
         if self._game_phase == 'x':
@@ -130,22 +130,22 @@ class Game:
         self.state.set_current_player('x')
 
         if isinstance(self.mr_x, UserPlayer):
-            if not self.display.user_turn.is_user_turn:
+            if not self.display.user_controls.is_user_turn:
                 self._begin_user_move('x')
                 return
 
-            if self.display.user_turn.chosen_move is None:
+            if self.display.user_controls.chosen_move is None:
                 return
 
-            ticket, node = self.display.user_turn.chosen_move
+            ticket, node = self.display.user_controls.chosen_move
             if ticket == 'double':
                 self.state.update_use_double_ticket()
                 self.state.update_double_ticket_permission(False)
-                self.display.user_turn.using_double_ticket_counter = 2
-                self.display.user_turn.chosen_move = None
+                self.display.user_controls.double_move_count = 2
+                self.display.user_controls.chosen_move = None
                 return
 
-            self.display.user_turn.is_user_turn = False
+            self.display.user_controls.is_user_turn = False
 
         else:
             ticket, node = self.mr_x.make_move(self.state)
@@ -170,11 +170,11 @@ class Game:
             self._game_phase = 'over'
             return
 
-        if self.display.user_turn.using_double_ticket_counter > 0:
-            self.display.user_turn.using_double_ticket_counter -= 1
-            self.display.user_turn.chosen_move = None
+        if self.display.user_controls.double_move_count > 0:
+            self.display.user_controls.double_move_count -= 1
+            self.display.user_controls.chosen_move = None
 
-        if self.display.user_turn.using_double_ticket_counter == 0:
+        if self.display.user_controls.double_move_count == 0:
             self.state.update_double_ticket_permission(True)
         else:
             return
@@ -200,15 +200,15 @@ class Game:
         self.state.set_current_player(detective.name)
 
         if isinstance(detective, UserPlayer):
-            if not self.display.user_turn.is_user_turn:
+            if not self.display.user_controls.is_user_turn:
                 self._begin_user_move(detective.name)
                 return
 
-            if self.display.user_turn.chosen_move is None:
+            if self.display.user_controls.chosen_move is None:
                 return
 
-            ticket, node = self.display.user_turn.chosen_move
-            self.display.user_turn.is_user_turn = False
+            ticket, node = self.display.user_controls.chosen_move
+            self.display.user_controls.is_user_turn = False
 
         else:
             ticket, node = detective.make_move(self.state)
@@ -236,11 +236,11 @@ class Game:
                 self._d_move_index += 1
             return
 
-        self.display.user_turn.is_user_turn = True
-        self.display.user_turn.player_name = player
-        self.display.user_turn.chosen_move = None
-        self.display.user_turn.reachable_nodes = reachable_nodes
-        self.display.user_turn.selected_node = None
+        self.display.user_controls.is_user_turn = True
+        self.display.user_controls.player_name = player
+        self.display.user_controls.chosen_move = None
+        self.display.user_controls.reachable_nodes = reachable_nodes
+        self.display.user_controls.selected_node = None
         self.display.hide_popup()
 
 
@@ -265,7 +265,7 @@ class Game:
         """ Helper function for running the game without visuals. """
 
         self.state.reset_game_state()
-        while self.state.winner is None:
+        while True:
             self.state.set_current_player('x')
             x_ticket, x_node = self.mr_x.make_move(self.state)
             if x_ticket == 'double':
@@ -311,4 +311,4 @@ class Game:
         return self.state.winner
 
 
-__all__ = ["Game"]
+__all__ = ['Game']
