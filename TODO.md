@@ -7,6 +7,7 @@
   - Add control hints (SPACE for un-pausing wait after turn).
 - Add player that moves towards Mr. X's last known location.
 - Implement GNN Trainers.
+- For Mr. X training, try updating weights per-game and per-segment (from given round to next reveal).
 
 ---
 
@@ -19,6 +20,9 @@
 ---
 
 # Latest Changes
-Code clean up.
-- Minor code clean up in `Assets`, `Camera`, `Display` and `Game`.
+Implemented training for the Detectives.
+- Added an option to run the `Graph` class without neo4j, in-memory.
+- Implemented a new `TrainingDetectiveNetPlayer` to aid in training of the Models wo\ repeating game logic.
+- Implemented `DetectiveTrainer`.
+- Split `game.play()` logic wo/ visuals into separate helper functions for training convenience.
 - Updated TODO.

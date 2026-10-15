@@ -261,52 +261,61 @@ class Game:
         return self.state.winner
 
 
+    def _play_round_without_visuals(self) -> None:
+        """ Helper function for running a single round of the game without visuals. """
+
+        d_move_count = 0
+        for detective in self.detectives:
+            self.state.set_current_player(detective.name)
+            d_ticket, d_node = detective.make_move(self.state)
+            if d_node is None:
+                continue
+
+            d_move_count += 1
+            self.state.update_after_move(detective.name, d_node, d_ticket)
+
+            if self.state.check_caught(detective.name):
+                self.state.set_winner(detective.name)
+                return
+
+        if d_move_count == 0:
+            self.state.set_winner('x')
+            return
+
+        self._make_x_move_without_visuals()
+        if self.state.x_step_count >= 24:
+            self.state.set_winner('x')
+            return
+
+
+    def _make_x_move_without_visuals(self) -> None:
+        """ Helper function for running Mr. X's move logic without visuals. """
+
+        self.state.set_current_player('x')
+        x_ticket, x_node = self.mr_x.make_move(self.state)
+        if x_ticket == 'double':
+            self.state.update_use_double_ticket()
+            self.state.update_double_ticket_permission(False)
+
+            x_ticket, x_node = self.mr_x.make_move(self.state)
+            self.state.update_after_move('x', x_node, x_ticket)
+
+            x_ticket, x_node = self.mr_x.make_move(self.state)
+            self.state.update_after_move('x', x_node, x_ticket)
+
+            self.state.update_double_ticket_permission(True)
+
+        else:
+            self.state.update_after_move('x', x_node, x_ticket)
+
+
     def _play_without_visuals(self) -> str:
         """ Helper function for running the game without visuals. """
 
         self.state.reset_game_state()
-        while True:
-            self.state.set_current_player('x')
-            x_ticket, x_node = self.mr_x.make_move(self.state)
-            if x_ticket == 'double':
-                self.state.update_use_double_ticket()
-                self.state.update_double_ticket_permission(False)
-
-                x_ticket, x_node = self.mr_x.make_move(self.state)
-                self.state.update_after_move('x', x_node, x_ticket)
-
-                x_ticket, x_node = self.mr_x.make_move(self.state)
-                self.state.update_after_move('x', x_node, x_ticket)
-
-                self.state.update_double_ticket_permission(True)
-
-            else:
-                self.state.update_after_move('x', x_node, x_ticket)
-
-            if self.state.x_step_count >= 24:
-                self.state.set_winner('x')
-                break
-
-            d_move_count = 0
-            for detective in self.detectives:
-                self.state.set_current_player(detective.name)
-                d_ticket, d_node = detective.make_move(self.state)
-                if d_node is None:
-                    continue
-
-                d_move_count += 1
-                self.state.update_after_move(detective.name, d_node, d_ticket)
-
-                if self.state.check_caught(detective.name):
-                    self.state.set_winner(detective.name)
-                    break
-
-            if self.state.winner:
-                break
-
-            if d_move_count == 0:
-                self.state.set_winner('x')
-                break
+        self._make_x_move_without_visuals()
+        while not self.state.winner:
+            self._play_round_without_visuals()
 
         return self.state.winner
 

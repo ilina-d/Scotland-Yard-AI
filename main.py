@@ -5,19 +5,26 @@ from utils.game import Game
 from utils.players import RandomPlayer, ExplorerPlayer, UserPlayer, DetectiveNetPlayer, MrXNetPlayer
 from utils.neural_nets.detective_nets import TestDetectiveNet
 from utils.neural_nets.mrx_nets import TestMrXNet
+from utils.neural_nets.trainers import DetectiveTrainer
 from utils.helpers import Graph, Database
 
 
-game = Game(
-    detective_r = RandomPlayer('r'),
-    detective_g = RandomPlayer('g'),
-    detective_b = RandomPlayer('b'),
-    detective_o = RandomPlayer('o'),
-    detective_p = RandomPlayer('p'),
-    mr_x = RandomPlayer('x'),
-    always_show_x = True,
-    visuals = True,
-    wait_after_move = 500
+det_net = TestDetectiveNet()
+
+DetectiveTrainer.train(
+    detective_net = det_net,
+    lr = 0.001,
+    wd = 0.0001,
+    epochs = 100,
+    opponent = RandomPlayer('x'),
+    gamma = 0.99,
+    value_coef = 0.5,
+    entropy_coef = 0.01,
+    per_round = True
 )
 
-game.play()
+DetectiveTrainer.save(
+    detective_net = det_net,
+    file_name = 'DetNetFirstTryTest',
+    comment = 'Testing the detective net trainer'
+)

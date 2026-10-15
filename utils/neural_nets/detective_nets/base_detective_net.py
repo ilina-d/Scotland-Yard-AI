@@ -117,13 +117,14 @@ class BaseDetectiveNet(nn.Module):
         return actions
 
 
-    def get_state_evaluation(self, state: State, player: str) -> float:
+    def get_state_evaluation(self, state: State, player: str, as_tensor: bool = False) -> float | torch.Tensor:
         """
         Get the estimated state value for the given player.
 
         Arguments:
             state: The current game state.
             player: Which detective is playing ('r', 'g', 'b', 'o', or 'p').
+            as_tensor: Whether to return the state evaluation as a tensor.
 
         Returns:
             The estimated value.
@@ -131,6 +132,9 @@ class BaseDetectiveNet(nn.Module):
 
         data = self.graph.get_gnn_input(state, player).to(self.device)
         output = self.forward(data)[1]
+
+        if as_tensor:
+            return output
 
         return float(output.item())
 
@@ -152,9 +156,9 @@ class BaseDetectiveNet(nn.Module):
             return '', None
 
         probs = torch.stack([item[2] for item in distribution])
-        node, ticket = divmod(probs.argmax().item(), self.NUM_TICKETS)
+        node, ticket, _ = distribution[probs.argmax().item()]
 
-        return self.TICKET_NAMES[ticket], node + 1
+        return ticket, node
 
 
 __all__ = ['BaseDetectiveNet']

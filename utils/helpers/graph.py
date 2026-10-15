@@ -55,13 +55,23 @@ class Graph:
     # 11: Number of rounds until Mr. X's next reveal. (0 to 5 normalized)
     feature_shape_d: list[list[int | float]] = [[0] * 12 for _ in range(num_nodes)]
 
-    def __new__(cls) -> 'Graph':
-        """ Create and initialize a graph instance. """
+    def __new__(cls, use_neo4j: bool = False) -> 'Graph':
+        """
+        Create and initialize a graph instance.
+
+        Arguments:
+            use_neo4j: Whether the graph searching will go through Neo4j or python.
+        """
 
         if cls._instance:
             return cls._instance
 
         cls._instance = super().__new__(cls)
+
+        cls._instance.use_neo4j = use_neo4j
+
+
+        cls._instance.routes = {'taxi': {}, 'bus': {}, 'metro': {}, 'ferry': {}}
 
         start_nodes = []
         end_nodes = []
@@ -95,18 +105,29 @@ class Graph:
                 route_types.append(route_encoder[route].index(1))
                 route_types.append(route_encoder[route].index(1))
 
+                if n1 not in cls._instance.routes[route].keys():
+                    cls._instance.routes[route][n1] = set()
+                cls._instance.routes[route][n1].add(n2)
+
+                if n2 not in cls._instance.routes[route].keys():
+                    cls._instance.routes[route][n2] = set()
+                cls._instance.routes[route][n2].add(n1)
+
                 cls._instance._db_rows.append({'a' : n1, 'b' : n2, 'type' : route.strip()})
 
         cls._instance.edge_index = torch.tensor([start_nodes, end_nodes], dtype = torch.long)
         cls._instance.edge_attr = torch.tensor(route_attrs, dtype = torch.float)
         cls._instance.edge_type = torch.tensor(route_types)
 
+        cls._instance._potential_x_pos = []
+
+        if not cls._instance.use_neo4j:
+            return cls._instance
+
         cls._instance.db = Database()
         if not cls._instance.is_db_loaded():
             cls._instance.flush_db()
             cls._instance.fill_db()
-
-        cls._instance._potential_x_pos = []
 
         return cls._instance
 
@@ -329,6 +350,16 @@ class Graph:
             The reachable neighboring stations.
         """
 
+        if self.use_neo4j:
+            return self._get_reachable_by_ticket_neo4j(state, player, ticket, from_node)
+
+        return self._get_reachable_by_ticket_python(state, player, ticket, from_node)
+
+
+    def _get_reachable_by_ticket_neo4j(self, state: State, player: str, ticket: str,
+                                       from_node: int = None) -> list[int]:
+        """ Helper function for get_reachable_neighbors_by_ticket. """
+
         if state.tickets[player][ticket] == 0:
             return []
 
@@ -347,6 +378,27 @@ class Graph:
             return [result['node']]
 
         return [record['node'] for record in result]
+
+
+    def _get_reachable_by_ticket_python(self, state: State, player: str, ticket: str,
+                                        from_node: int = None) -> list[int]:
+        """ Helper function for get_reachable_neighbors_by_ticket. """
+
+        if state.tickets[player][ticket] == 0:
+            return []
+
+        player_station = state.positions[player] if not from_node else from_node
+
+        if ticket == 'black':
+            all_neighbors = set()
+
+            for r_dict in self.routes.values():
+                if player_station in r_dict.keys():
+                    all_neighbors.update(r_dict[player_station])
+
+            return list(all_neighbors)
+
+        return list(self.routes[ticket][player_station]) if player_station in self.routes[ticket] else []
 
 
     def get_reachable_neighbors(self, state: State, player: str) -> list[int]:
