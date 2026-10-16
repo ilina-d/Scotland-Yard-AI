@@ -14,8 +14,8 @@ class TrainingDetectiveNetPlayer(DetectiveNetPlayer):
 
 
     def make_move(self, state: State) -> tuple[str, int | None]:
-        distribution = self.net.get_distribution_policy(state, self.name)
-        value_before = self.net.get_state_evaluation(state, self.name, as_tensor = True).reshape(())
+        distribution, value_before = self.net.get_processed_output(state, self.name, value_as_tensor = True)
+        value_before = value_before.reshape(())
 
         if len(distribution) == 0:
             self.move_logs.append({

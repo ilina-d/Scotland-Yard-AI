@@ -1,4 +1,3 @@
-from neo4j import GraphDatabase
 import os
 import json
 
@@ -36,6 +35,8 @@ class Database:
                     cls._instance.database = config['database']
 
             print(f'[i] Attempting connection...')
+            from neo4j import GraphDatabase
+
             cls._instance.driver = GraphDatabase.driver(
                 uri = cls._instance.uri, auth = (cls._instance.username, cls._instance.password)
             )

@@ -64,7 +64,7 @@ class BaseDetectiveNet(nn.Module):
         for layer in self.policy_head:
             policy_output = layer(policy_output)
 
-        self_emb = outputs[data.x[:, 0] == 1]
+        self_emb = outputs[data.x[:, 0].argmax()].unsqueeze(0)
         det_mean = self._masked_mean(outputs, data.x[:, 1] == 1)
         mrx_mean = self._masked_mean(outputs, data.x[:, 2] == 1)
 
@@ -76,22 +76,32 @@ class BaseDetectiveNet(nn.Module):
         return policy_output, value_output
 
 
-    def get_distribution_policy(self, state: State, player: str) -> list[tuple[int, str, torch.Tensor]]:
+    def get_processed_output(self, state: State, player: str, value_as_tensor: bool = False, value_only: bool = False) \
+            -> tuple[list[tuple[int, str, torch.Tensor]], float | torch.Tensor]:
         """
         Get the processed output of the network for a given input.
 
         Arguments:
             state: The current game state.
             player: Which detective is deciding ('r', 'g', 'b', 'o', or 'p').
+            value_as_tensor: Whether to return the state evaluation as a tensor.
+            value_only: Whether to return early without processing the action tuples.
 
         Returns:
-            A list of tuples (destination, ticket, log_probability), for each destination node on the map.
+            Two things. First, a list of (destination, ticket, log_probability) tuples for each action.
+            Second, the estimated evaluation of the given state as a float or tensor.
         """
 
         data = self.graph.get_gnn_input(state, player).to(self.device)
-        outputs = self.forward(data)[0]
+        policy_output, value_output = self.forward(data)
 
-        legal_mask = torch.zeros(self.graph.num_nodes, self.NUM_TICKETS, dtype = torch.bool, device = self.device)
+        if not value_as_tensor:
+            value_output = float(value_output.item())
+
+        if value_only:
+            return [], value_output
+
+        legal_mask = torch.zeros(self.graph.num_nodes, self.NUM_TICKETS, dtype = torch.bool)
         detectives_pos = {state.positions[d] for d in ('r', 'g', 'b', 'o', 'p')}
 
         for t, ticket in enumerate(self.TICKET_NAMES):
@@ -103,9 +113,10 @@ class BaseDetectiveNet(nn.Module):
 
         legal_mask = legal_mask.flatten()
         if not legal_mask.any():
-            return []
+            return [], value_output
 
-        outputs = outputs.flatten()
+        legal_mask = legal_mask.to(self.device)
+        outputs = policy_output.flatten()
         outputs = outputs.masked_fill(~legal_mask, float('-inf'))
         probs = F.log_softmax(outputs, dim = 0)
 
@@ -114,31 +125,10 @@ class BaseDetectiveNet(nn.Module):
             for t, ticket in enumerate(self.TICKET_NAMES):
                 actions.append((node, ticket, probs[(node - 1) * self.NUM_TICKETS + t]))
 
-        return actions
+        return actions, value_output
 
 
-    def get_state_evaluation(self, state: State, player: str, as_tensor: bool = False) -> float | torch.Tensor:
-        """
-        Get the estimated state value for the given player.
-
-        Arguments:
-            state: The current game state.
-            player: Which detective is playing ('r', 'g', 'b', 'o', or 'p').
-            as_tensor: Whether to return the state evaluation as a tensor.
-
-        Returns:
-            The estimated value.
-        """
-
-        data = self.graph.get_gnn_input(state, player).to(self.device)
-        output = self.forward(data)[1]
-
-        if as_tensor:
-            return output
-
-        return float(output.item())
-
-
+    @torch.no_grad()
     def get_action(self, state: State, player: str) -> tuple[str, int | None]:
         """
         Get the best action for the detective the given state.
@@ -151,7 +141,7 @@ class BaseDetectiveNet(nn.Module):
             The chosen action by the net.
         """
 
-        distribution = self.get_distribution_policy(state, player)
+        distribution, _ = self.get_processed_output(state, player)
         if len(distribution) == 0:
             return '', None
 

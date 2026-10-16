@@ -6,6 +6,7 @@ from utils.game import Game
 from torch.nn import functional as F
 import os
 
+
 class DetectiveTrainer:
     """ GNN Trainer for the Detective Players. """
 
@@ -27,7 +28,7 @@ class DetectiveTrainer:
             winner = game.play()
 
         else:
-            game._play_round_without_visuals()
+            game._new_round_silently()
             winner = game.state.winner
 
         all_move_logs = {
@@ -121,6 +122,9 @@ class DetectiveTrainer:
                 always_show_x = False
             )
 
+            if per_round:
+                game._step_x_silently()
+
             round_count = 0
             while True:
                 move_logs, winner = cls._play_episode(game, per_round)
@@ -139,13 +143,14 @@ class DetectiveTrainer:
                     next_values = torch.cat([past_values[1:].detach(), past_values.new_tensor([final_reward / gamma])])
 
                 else:
-                    winner_info = '/'
-                    next_values = torch.cat([
-                        past_values[1:].detach(),
-                        detective_net.get_state_evaluation(game.state, player = 'r', as_tensor = True)
-                    ])
+                    winner_info = ' '
+                    with torch.no_grad():
+                        _, post_value = detective_net.get_processed_output(
+                            game.state, player = 'r', value_as_tensor = True, value_only = True
+                        )
+                    next_values = torch.cat([past_values[1:].detach(), post_value.reshape(1)])
 
-                targets = gamma * next_values
+                targets = (gamma * next_values).detach()
 
                 advantages = (targets - past_values).detach()
                 policy_loss = -(log_probs * advantages * acted).sum() / num_acted

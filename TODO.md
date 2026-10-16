@@ -20,9 +20,17 @@
 ---
 
 # Latest Changes
-Implemented training for the Detectives.
-- Added an option to run the `Graph` class without neo4j, in-memory.
-- Implemented a new `TrainingDetectiveNetPlayer` to aid in training of the Models wo\ repeating game logic.
-- Implemented `DetectiveTrainer`.
-- Split `game.play()` logic wo/ visuals into separate helper functions for training convenience.
-- Updated TODO.
+Optimizations and fixes.
+- `Game` changes:
+  - Now handles updating Mr. X's potential positions through `Graph`.
+  - Code refactoring.
+- `Graph` changes:
+  - Fixed Mr. X's potential positions being updated when they should not be.
+  - Static tensors are now sent to the correct device only once.
+  - Optimized building of features (no longer relies on `deepcopy`).
+- `BaseDetectiveNet` and `BaseMrXNet` changes:
+  - Replaced `get_distribution_policy()` and `get_state_evaluation()` with `get_processed_output()` which
+    returns both the action policy and state evaluation.
+  - Slightly optimization in building self embeddings and `get_action()`.
+- Fixed `DetectiveTrainer` not processing Mr. X's first move when running `per_round` training.
+- `Database` now imports Neo4j only if necessary.

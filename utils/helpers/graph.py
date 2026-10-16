@@ -1,6 +1,5 @@
 import torch
 from torch_geometric.data import Data
-from copy import deepcopy
 from .state import State
 from .database import Database
 
@@ -9,6 +8,7 @@ class Graph:
     """ Game board representation and logic for GNN input. """
 
     _instance: 'Graph' = None
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     num_nodes: int = 199
     num_taxi_edges: int = 345
@@ -17,6 +17,7 @@ class Graph:
     num_ferry_edges: int = 3
     num_edge_types: int = 4
     graph_data_path: str = 'utils/helpers/graph_data.csv'
+    _potential_x_pos: list[int] = []
 
     # Node features for Mr. X:
     # 0 : Is Mr X truly on this node? (0 or 1)
@@ -54,6 +55,7 @@ class Graph:
     # 10: Round number. (1 to 24 normalized)
     # 11: Number of rounds until Mr. X's next reveal. (0 to 5 normalized)
     feature_shape_d: list[list[int | float]] = [[0] * 12 for _ in range(num_nodes)]
+
 
     def __new__(cls, use_neo4j: bool = False) -> 'Graph':
         """
@@ -115,11 +117,9 @@ class Graph:
 
                 cls._instance._db_rows.append({'a' : n1, 'b' : n2, 'type' : route.strip()})
 
-        cls._instance.edge_index = torch.tensor([start_nodes, end_nodes], dtype = torch.long)
-        cls._instance.edge_attr = torch.tensor(route_attrs, dtype = torch.float)
-        cls._instance.edge_type = torch.tensor(route_types)
-
-        cls._instance._potential_x_pos = []
+        cls._instance.edge_index = torch.tensor([start_nodes, end_nodes], dtype = torch.long).to(cls.device)
+        cls._instance.edge_attr = torch.tensor(route_attrs, dtype = torch.float).to(cls.device)
+        cls._instance.edge_type = torch.tensor(route_types).to(cls.device)
 
         if not cls._instance.use_neo4j:
             return cls._instance
@@ -186,7 +186,7 @@ class Graph:
 
         detectives_pos = {player : pos for player, pos in state.positions.items() if player != 'x'}
         x_node = state.positions['x']
-        features = deepcopy(self.feature_shape_x)
+        features = [row.copy() for row in self.feature_shape_x]
 
         # 0 : Is Mr X truly on this node? (0 or 1)
         features[x_node - 1][0] = 1
@@ -247,7 +247,7 @@ class Graph:
         other_detectives_pos = {player: pos for player, pos in state.positions.items()
                                 if player != detective and player != 'x'}
         current_node = state.positions[detective]
-        features = deepcopy(self.feature_shape_d)
+        features = [row.copy() for row in self.feature_shape_d]
 
         # 0 : Is the Detective on this node? (0 or 1)
         features[current_node - 1][0] = 1
@@ -327,7 +327,7 @@ class Graph:
         """
 
         return Data(
-            x = self.get_features_by_player(state, player),
+            x = self.get_features_by_player(state, player).to(self.device),
             edge_index = self.edge_index,
             edge_attr = self.edge_attr,
             edge_type = self.edge_type,
@@ -421,16 +421,20 @@ class Graph:
         return list(nodes)
 
 
-    def get_potential_x_pos(self, state: State) -> list[int]:
+    def get_potential_x_pos(self, state: State, update: bool = False) -> list[int]:
         """
         Get Mr. X's potential positions based on his travel logs.
 
         Arguments:
             state: The current game state.
+            update: Whether to update the possible Mr. X positions or return the previously calculated result.
 
         Returns:
             The nodes that could be occupied by Mr. X.
         """
+
+        if not update:
+            return self._potential_x_pos
 
         if len(state.travel_logs) == 0:
             self._potential_x_pos = state.X_STARTER_NODES

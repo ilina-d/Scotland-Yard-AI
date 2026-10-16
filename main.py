@@ -1,4 +1,5 @@
 import os
+os.environ['CUDA_VISIBLE_DEVICES'] = '-1'  # FORCES CPU USAGE!
 os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = 'hide'
 
 from utils.game import Game
@@ -15,16 +16,16 @@ DetectiveTrainer.train(
     detective_net = det_net,
     lr = 0.001,
     wd = 0.0001,
-    epochs = 100,
+    epochs = 10,
     opponent = RandomPlayer('x'),
     gamma = 0.99,
     value_coef = 0.5,
     entropy_coef = 0.01,
-    per_round = True
+    per_round = False
 )
 
 DetectiveTrainer.save(
     detective_net = det_net,
-    file_name = 'DetNetFirstTryTest',
-    comment = 'Testing the detective net trainer'
+    file_name = 'TestDetectiveNet_PerRound',
+    comment = '/'
 )

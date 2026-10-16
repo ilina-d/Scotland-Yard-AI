@@ -68,9 +68,37 @@ class Game:
         """
 
         if self.visuals:
-            return self._play_with_visuals()
+            return self._play_visually()
 
-        return self._play_without_visuals()
+        return self._play_silently()
+    
+    
+    def _play_visually(self) -> str:
+        """ Helper function for running the game with visuals. """
+
+        self.state.reset_game_state()
+        while self.display.is_running:
+            dt = self.display.clock.tick(60) / 1000
+            self.display.process_events()
+
+            if self.state.winner:
+                break
+
+            self._new_round_visually(dt)
+            self.display.draw()
+
+        return self.state.winner
+    
+    
+    def _play_silently(self) -> str:
+        """ Helper function for running the game without visuals. """
+
+        self.state.reset_game_state()
+        self._step_x_silently()
+        while not self.state.winner:
+            self._new_round_silently()
+
+        return self.state.winner
 
 
     def _get_reachable_nodes(self, player: str) -> dict[int, list[str]]:
@@ -102,7 +130,7 @@ class Game:
         return reachable_nodes
 
 
-    def _run_logic_with_visuals(self, dt: float) -> None:
+    def _new_round_visually(self, dt: float) -> None:
         """ Helper function for executing the game logic along with visuals. """
 
         if self.state.winner:
@@ -117,21 +145,21 @@ class Game:
             return
 
         if self._game_phase == 'x':
-            self._step_x()
+            self._step_x_visually()
         elif self._game_phase == 'd':
-            self._step_d()
+            self._step_d_visually()
 
         self.display.start_wait_after_move()
 
 
-    def _step_x(self) -> None:
+    def _step_x_visually(self) -> None:
         """ Helper function for running Mr. X's turn logic along with visuals. """
 
         self.state.set_current_player('x')
 
         if isinstance(self.mr_x, UserPlayer):
             if not self.display.user_controls.is_user_turn:
-                self._begin_user_move('x')
+                self._process_user_visual_input('x')
                 return
 
             if self.display.user_controls.chosen_move is None:
@@ -156,14 +184,17 @@ class Game:
 
             t1, n1 = self.mr_x.make_move(self.state)
             self.state.update_after_move('x', n1, t1)
+            self.graph.get_potential_x_pos(self.state, update = True)
 
             t2, n2 = self.mr_x.make_move(self.state)
             self.state.update_after_move('x', n2, t2)
+            self.graph.get_potential_x_pos(self.state, update = True)
 
             self.state.update_double_ticket_permission(True)
 
         else:
             self.state.update_after_move('x', node, ticket)
+            self.graph.get_potential_x_pos(self.state, update = True)
 
         if self.state.x_step_count >= 24:
             self.state.set_winner('x')
@@ -184,7 +215,7 @@ class Game:
         self._d_move_index = 0
 
 
-    def _step_d(self) -> None:
+    def _step_d_visually(self) -> None:
         """ Helper function for running a Detective's turn logic along with visuals. """
 
         if self._d_move_index == len(self.detectives):
@@ -201,7 +232,7 @@ class Game:
 
         if isinstance(detective, UserPlayer):
             if not self.display.user_controls.is_user_turn:
-                self._begin_user_move(detective.name)
+                self._process_user_visual_input(detective.name)
                 return
 
             if self.display.user_controls.chosen_move is None:
@@ -225,7 +256,7 @@ class Game:
             return
 
 
-    def _begin_user_move(self, player: str) -> None:
+    def _process_user_visual_input(self, player: str) -> None:
         """ Helper function for handling user input along with visuals. """
 
         reachable_nodes = self._get_reachable_nodes(player)
@@ -244,24 +275,7 @@ class Game:
         self.display.hide_popup()
 
 
-    def _play_with_visuals(self) -> str:
-        """ Helper function for running the game with visuals. """
-
-        self.state.reset_game_state()
-        while self.display.is_running:
-            dt = self.display.clock.tick(60) / 1000
-            self.display.process_events()
-
-            if self.state.winner:
-                break
-
-            self._run_logic_with_visuals(dt)
-            self.display.draw()
-
-        return self.state.winner
-
-
-    def _play_round_without_visuals(self) -> None:
+    def _new_round_silently(self) -> None:
         """ Helper function for running a single round of the game without visuals. """
 
         d_move_count = 0
@@ -282,13 +296,13 @@ class Game:
             self.state.set_winner('x')
             return
 
-        self._make_x_move_without_visuals()
+        self._step_x_silently()
         if self.state.x_step_count >= 24:
             self.state.set_winner('x')
             return
 
 
-    def _make_x_move_without_visuals(self) -> None:
+    def _step_x_silently(self) -> None:
         """ Helper function for running Mr. X's move logic without visuals. """
 
         self.state.set_current_player('x')
@@ -299,25 +313,17 @@ class Game:
 
             x_ticket, x_node = self.mr_x.make_move(self.state)
             self.state.update_after_move('x', x_node, x_ticket)
+            self.graph.get_potential_x_pos(self.state, update = True)
 
             x_ticket, x_node = self.mr_x.make_move(self.state)
             self.state.update_after_move('x', x_node, x_ticket)
+            self.graph.get_potential_x_pos(self.state, update = True)
 
             self.state.update_double_ticket_permission(True)
 
         else:
             self.state.update_after_move('x', x_node, x_ticket)
-
-
-    def _play_without_visuals(self) -> str:
-        """ Helper function for running the game without visuals. """
-
-        self.state.reset_game_state()
-        self._make_x_move_without_visuals()
-        while not self.state.winner:
-            self._play_round_without_visuals()
-
-        return self.state.winner
+            self.graph.get_potential_x_pos(self.state, update = True)
 
 
 __all__ = ['Game']

@@ -69,7 +69,7 @@ class BaseMrXNet(nn.Module):
             double_output = layer(double_output)
         double_output = double_output.squeeze(-1)
 
-        self_emb = outputs[data.x[:, 0] == 1]
+        self_emb = outputs[data.x[:, 0].argmax()].unsqueeze(0)
         det_mean = self._masked_mean(outputs, data.x[:, 7] == 1)
         mrx_mean = self._masked_mean(outputs, data.x[:, 6] == 1)
 
@@ -82,22 +82,32 @@ class BaseMrXNet(nn.Module):
         return policy_output, value_output
 
 
-    def get_distribution_policy(self, state: State) -> list[tuple[int, str, torch.Tensor]]:
+    def get_processed_output(self, state: State, value_as_tensor: bool = False, value_only: bool = False) \
+            -> tuple[list[tuple[int, str, torch.Tensor]], float | torch.Tensor]:
         """
         Get the processed output of the network for a given input.
 
         Arguments:
             state: The current game state.
+            value_as_tensor: Whether to return the state evaluation as a tensor.
+            value_only: Whether to return early without processing the action tuples.
 
         Returns:
-            A list of tuples (destination, ticket, log_probability), for each destination node on the map.
+            Two things. First, a list of (destination, ticket, log_probability) tuples for each action.
+            Second, the estimated evaluation of the given state as a float or tensor.
         """
 
         player = 'x'
         data = self.graph.get_gnn_input(state, player).to(self.device)
-        outputs = self.forward(data)[0]
+        policy_output, value_output = self.forward(data)
 
-        legal_mask = torch.zeros(self.NUM_TICKETS * self.graph.num_nodes + 1, dtype = torch.bool, device = self.device)
+        if not value_as_tensor:
+            value_output = float(value_output.item())
+
+        if value_only:
+            return [], value_output
+
+        legal_mask = torch.zeros(self.NUM_TICKETS * self.graph.num_nodes + 1, dtype = torch.bool)
         detectives_pos = {state.positions[d] for d in ('r', 'g', 'b', 'o', 'p')}
 
         for t, ticket in enumerate(self.TICKET_NAMES):
@@ -111,9 +121,10 @@ class BaseMrXNet(nn.Module):
             legal_mask[-1] = True
 
         if not legal_mask.any():
-            return []
+            return [], value_output
 
-        outputs = outputs.masked_fill(~legal_mask, float('-inf'))
+        legal_mask = legal_mask.to(self.device)
+        outputs = policy_output.masked_fill(~legal_mask, float('-inf'))
         probs = F.log_softmax(outputs, dim = 0)
 
         actions = []
@@ -123,27 +134,10 @@ class BaseMrXNet(nn.Module):
 
         actions.append((-1, 'double', probs[-1]))
         
-        return actions
+        return actions, value_output
 
 
-    def get_state_evaluation(self, state: State, player: str) -> float:
-        """
-        Get the estimated state value for the given player.
-
-        Arguments:
-            state: The current game state.
-            player: Which detective is playing ('r', 'g', 'b', 'o', or 'p').
-
-        Returns:
-            The estimated value.
-        """
-
-        data = self.graph.get_gnn_input(state, player).to(self.device)
-        output = self.forward(data)[1]
-
-        return float(output.item())
-
-
+    @torch.no_grad()
     def get_action(self, state: State) -> tuple[str, int | None]:
         """
         Get the best action for the detective the given state.
@@ -155,7 +149,7 @@ class BaseMrXNet(nn.Module):
             The chosen action by the net.
         """
 
-        distribution = self.get_distribution_policy(state)
+        distribution, _ = self.get_processed_output(state)
         if len(distribution) == 0:
             return '', None
 
