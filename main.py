@@ -11,21 +11,22 @@ from utils.helpers import Graph, Database
 
 
 det_net = TestDetectiveNet()
+det_net.load_weights('InitialTrainingTest_PerRound')
 
 DetectiveTrainer.train(
     detective_net = det_net,
     lr = 0.001,
     wd = 0.0001,
-    epochs = 10,
+    epochs = 10_000,
     opponent = RandomPlayer('x'),
     gamma = 0.99,
     value_coef = 0.5,
     entropy_coef = 0.01,
-    per_round = False
+    per_round = True
 )
 
 DetectiveTrainer.save(
     detective_net = det_net,
-    file_name = 'TestDetectiveNet_PerRound',
+    file_name = 'InitialTrainingTest_PerRound',
     comment = '/'
 )

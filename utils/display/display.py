@@ -329,7 +329,7 @@ class Display:
             return
 
         pulse = 0.5 + 0.5 * math.sin(pygame.time.get_ticks() / 220.0)
-        r = max(NODE_MIN_SCREEN_RADIUS + 4, NODE_RADIUS * self.camera.zoom + 6)
+        r = max(NODE_MIN_SCREEN_RADIUS + 4, NODE_RADIUS * self.camera.current_zoom + 6)
         ring_w = max(2, int(r * 0.16))
 
         for nid in self.user_controls.reachable_nodes:
@@ -494,16 +494,16 @@ class Display:
         for ticket in ('black', 'double'):
             bx = self._badge(bx, cy, ticket, tickets.get(ticket, 0))
 
-        self.double_ticket_button = pygame.Rect(bx, cy - 14, 80, 28)
+        self.user_controls.double_move_btn = pygame.Rect(bx, cy - 14, 80, 28)
         if self._is_double_ticket_usable():
             fill, border, text_color = COLOR_PANEL_SECTION, COLOR_TICKET['double'], COLOR_TEXT
         else:
             fill, border, text_color = COLOR_PANEL_SECTION, COLOR_PANEL_BORDER, COLOR_TEXT_MUTED
 
-        pygame.draw.rect(self.screen, fill, self.double_ticket_button, border_radius = 5)
-        pygame.draw.rect(self.screen, border, self.double_ticket_button, 2, border_radius = 5)
+        pygame.draw.rect(self.screen, fill, self.user_controls.double_move_btn, border_radius = 5)
+        pygame.draw.rect(self.screen, border, self.user_controls.double_move_btn, 2, border_radius = 5)
         surf = self.FONT_BOLD.render('Use Double', True, text_color)
-        self.screen.blit(surf, surf.get_rect(center = self.double_ticket_button.center))
+        self.screen.blit(surf, surf.get_rect(center = self.user_controls.double_move_btn.center))
 
         return y + row_h + 4
 

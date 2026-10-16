@@ -5,6 +5,7 @@
   - Add game over screen.
   - Change the Mr. X travel log to clearly indicate at which moves he appears.
   - Add control hints (SPACE for un-pausing wait after turn).
+  - Hovering over a player token makes it transparent so you can see the node they're on.
 - Add player that moves towards Mr. X's last known location.
 - Implement GNN Trainers.
 - For Mr. X training, try updating weights per-game and per-segment (from given round to next reveal).
@@ -20,17 +21,10 @@
 ---
 
 # Latest Changes
-Optimizations and fixes.
-- `Game` changes:
-  - Now handles updating Mr. X's potential positions through `Graph`.
-  - Code refactoring.
-- `Graph` changes:
-  - Fixed Mr. X's potential positions being updated when they should not be.
-  - Static tensors are now sent to the correct device only once.
-  - Optimized building of features (no longer relies on `deepcopy`).
-- `BaseDetectiveNet` and `BaseMrXNet` changes:
-  - Replaced `get_distribution_policy()` and `get_state_evaluation()` with `get_processed_output()` which
-    returns both the action policy and state evaluation.
-  - Slightly optimization in building self embeddings and `get_action()`.
-- Fixed `DetectiveTrainer` not processing Mr. X's first move when running `per_round` training.
-- `Database` now imports Neo4j only if necessary.
+Fixes and initial training.
+- Fixed `Display` using old `Camera` variable.
+- Fixed `Game` allowing user players to pick occupied destinations.
+- Fixed `Game` crashing when Mr. X has no valid moves.
+- Fixed `BasePlayer` being allowed to use double tickets when no other moves are available.
+- Added initial trained detective nets (because they're so good 😎).
+- Updated TODO.

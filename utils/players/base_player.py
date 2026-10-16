@@ -43,7 +43,7 @@ class BasePlayer(ABC):
                 if node not in detectives_pos:
                     legal_moves.append((ticket, node))
 
-        if state.can_use_double and tickets['double'] != 0:
+        if legal_moves and state.can_use_double and tickets['double'] != 0:
             legal_moves.append(('double', None))
 
         return legal_moves

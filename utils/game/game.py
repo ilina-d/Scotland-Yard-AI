@@ -104,24 +104,33 @@ class Game:
     def _get_reachable_nodes(self, player: str) -> dict[int, list[str]]:
         """ Helper function for getting reachable neighboring nodes. """
 
+        detectives_pos = [pos for det, pos in self.state.positions.items()]
         reachable_nodes = {}
         for node in self.graph.get_reachable_neighbors_by_ticket(self.state, player, 'taxi'):
+            if node in detectives_pos:
+                continue
             if node not in reachable_nodes:
                 reachable_nodes[node] = set()
             reachable_nodes[node].add('taxi')
 
         for node in self.graph.get_reachable_neighbors_by_ticket(self.state, player, 'bus'):
+            if node in detectives_pos:
+                continue
             if node not in reachable_nodes:
                 reachable_nodes[node] = set()
             reachable_nodes[node].add('bus')
 
         for node in self.graph.get_reachable_neighbors_by_ticket(self.state, player, 'metro'):
+            if node in detectives_pos:
+                continue
             if node not in reachable_nodes:
                 reachable_nodes[node] = set()
             reachable_nodes[node].add('metro')
 
         if player == 'x':
             for node in self.graph.get_reachable_neighbors_by_ticket(self.state, player, 'black'):
+                if node in detectives_pos:
+                    continue
                 if node not in reachable_nodes:
                     reachable_nodes[node] = set()
                 reachable_nodes[node].add('black')
@@ -192,9 +201,13 @@ class Game:
 
             self.state.update_double_ticket_permission(True)
 
-        else:
+        elif ticket:
             self.state.update_after_move('x', node, ticket)
             self.graph.get_potential_x_pos(self.state, update = True)
+
+        else:
+            self.state.set_winner('d')
+            return
 
         if self.state.x_step_count >= 24:
             self.state.set_winner('x')
@@ -297,6 +310,9 @@ class Game:
             return
 
         self._step_x_silently()
+        if self.state.winner:
+            return
+
         if self.state.x_step_count >= 24:
             self.state.set_winner('x')
             return
@@ -321,9 +337,12 @@ class Game:
 
             self.state.update_double_ticket_permission(True)
 
-        else:
+        elif x_ticket:
             self.state.update_after_move('x', x_node, x_ticket)
             self.graph.get_potential_x_pos(self.state, update = True)
+
+        else:
+            self.state.set_winner('d')
 
 
 __all__ = ['Game']
