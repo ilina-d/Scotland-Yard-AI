@@ -291,6 +291,18 @@ class Game:
     def _new_round_silently(self) -> None:
         """ Helper function for running a single round of the game without visuals. """
 
+        self._step_d_silently()
+        if self.state.winner:
+            return
+
+        self._step_x_silently()
+        if self.state.winner:
+            return
+
+
+    def _step_d_silently(self) -> None:
+        """ Helper function for running Detective move logic without visuals. """
+
         d_move_count = 0
         for detective in self.detectives:
             self.state.set_current_player(detective.name)
@@ -306,14 +318,6 @@ class Game:
                 return
 
         if d_move_count == 0:
-            self.state.set_winner('x')
-            return
-
-        self._step_x_silently()
-        if self.state.winner:
-            return
-
-        if self.state.x_step_count >= 24:
             self.state.set_winner('x')
             return
 
@@ -343,6 +347,9 @@ class Game:
 
         else:
             self.state.set_winner('d')
+
+        if self.state.x_step_count >= 24:
+            self.state.set_winner('x')
 
 
 __all__ = ['Game']

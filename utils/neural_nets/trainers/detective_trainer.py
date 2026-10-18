@@ -21,22 +21,28 @@ class DetectiveTrainer:
 
 
     @staticmethod
-    def _play_episode(game: Game, single_round: bool) -> tuple[dict[str, list], str]:
+    def _play_episode(game: Game, update_freq: str) -> tuple[dict[str, list], str]:
         """ Play a full game or one round where all detectives are controlled by the same given net. """
 
-        if not single_round:
+        if update_freq == 'per_game':
             winner = game.play()
 
-        else:
+        elif update_freq == 'per_round':
             game._new_round_silently()
+            winner = game.state.winner
+
+        else:
+            while True:
+                game._new_round_silently()
+                if game.state.winner or game.state.get_steps_until_reveal() == 1:
+                    break
             winner = game.state.winner
 
         all_move_logs = {
             'conf': [],
             'value_before': [],
             'entropy': [],
-            'acted' : [],
-            'x_steps': []
+            'acted' : []
         }
 
         while True:
@@ -52,7 +58,6 @@ class DetectiveTrainer:
                 all_move_logs['value_before'].append(current_move['value_before'])
                 all_move_logs['entropy'].append(current_move['entropy'])
                 all_move_logs['acted'].append(current_move['acted'])
-                all_move_logs['x_steps'].append(current_move['x_steps'])
 
             if empty_count == 5:
                 break
@@ -62,7 +67,7 @@ class DetectiveTrainer:
 
     @classmethod
     def train(cls, detective_net: BaseDetectiveNet, lr: float, wd: float, epochs: int, opponent: BasePlayer,
-              gamma: float, value_coef: float, entropy_coef: float, per_round: bool = False) -> None:
+              gamma: float, value_coef: float, entropy_coef: float, update_freq: str = 'per_game') -> None:
         """
         Train the Detective Net.
 
@@ -75,7 +80,8 @@ class DetectiveTrainer:
             gamma: Per-move discount factor.
             value_coef: Weight of the value head loss.
             entropy_coef: Weight of the entropy bonus (encourages exploration).
-            per_round: Whether to update the weights per-round when training (when False, updates once per game).
+            update_freq: How often weight updates occur when training
+                         (Options are: 'per_game', 'per_round' and 'per_reveal').
         """
 
         cls._training_logs = ''
@@ -97,7 +103,7 @@ class DetectiveTrainer:
             f'* Value Coef: {value_coef}\n'
             f'* Entropy Coef: {entropy_coef}\n'
             f'\n'
-            f'* Per Run Updates: {per_round}\n'
+            f'* Update Frequency: {update_freq}\n'
         )
 
         cls._log(f'\nTraining with: {detective_net.device}...')
@@ -122,12 +128,12 @@ class DetectiveTrainer:
                 always_show_x = False
             )
 
-            if per_round:
+            if update_freq != 'per_game':
                 game._step_x_silently()
 
             round_count = 0
             while True:
-                move_logs, winner = cls._play_episode(game, per_round)
+                move_logs, winner = cls._play_episode(game, update_freq)
                 round_count += 1
 
                 log_probs = torch.stack(move_logs['conf'])
@@ -164,12 +170,17 @@ class DetectiveTrainer:
                 optimizer.step()
                 scheduler.step()
 
-                round_info = '' if not per_round else f'| Round: {round_count:<2} '
+                segment_info = ''
+                if update_freq == 'per_round':
+                    segment_info = f'| Round: {round_count:<2} '
+                elif update_freq == 'per_reveal':
+                    segment_info = f'| Total steps: {game.state.x_step_count:<2} '
+
                 cls._log(
                     f'* Epoch: {epoch:<{epoch_spaces}} '
-                    f'{round_info}'
+                    f'{segment_info}'
                     f'| Winner: {winner_info} '
-                    f'| Loss: {loss.item():<12.6f} '
+                    f'| Loss: {loss.item():<12.6f}'
                 )
 
                 if winner:

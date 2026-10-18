@@ -6,7 +6,7 @@ import torch
 class TrainingDetectiveNetPlayer(DetectiveNetPlayer):
     """ Player Agent that stores additional info useful for training Detective GNNs. """
 
-    def __init__(self, name: str, net: BaseDetectiveNet):
+    def __init__(self, name: str, net: BaseDetectiveNet) -> None:
         super().__init__(name, net)
 
         self.net.train()
@@ -22,8 +22,7 @@ class TrainingDetectiveNetPlayer(DetectiveNetPlayer):
                 'conf': value_before.new_zeros(()),
                 'value_before': value_before,
                 'entropy': value_before.new_zeros(()),
-                'acted': False,
-                'x_steps': state.x_step_count
+                'acted': False
             })
             return '', None
 
@@ -39,8 +38,7 @@ class TrainingDetectiveNetPlayer(DetectiveNetPlayer):
             'conf': conf,
             'value_before': value_before,
             'entropy': entropy,
-            'acted': True,
-            'x_steps': state.x_step_count
+            'acted': True
         })
 
         return ticket, node
