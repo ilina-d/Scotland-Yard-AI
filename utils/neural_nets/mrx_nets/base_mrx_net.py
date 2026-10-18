@@ -110,14 +110,16 @@ class BaseMrXNet(nn.Module):
         legal_mask = torch.zeros(self.NUM_TICKETS * self.graph.num_nodes + 1, dtype = torch.bool)
         detectives_pos = {state.positions[d] for d in ('r', 'g', 'b', 'o', 'p')}
 
+        has_legal_moves = False
         for t, ticket in enumerate(self.TICKET_NAMES):
             if state.tickets[player][ticket] == 0:
                 continue
             for node in self.graph.get_reachable_neighbors_by_ticket(state, player, ticket):
                 if node not in detectives_pos and state.positions['x']:
                     legal_mask[(node - 1) * self.NUM_TICKETS + t] = True
+                    has_legal_moves = True
 
-        if state.can_use_double and state.tickets[player]['double']:
+        if has_legal_moves and state.can_use_double and state.tickets[player]['double']:
             legal_mask[-1] = True
 
         if not legal_mask.any():
