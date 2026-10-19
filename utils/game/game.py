@@ -305,6 +305,9 @@ class Game:
     def _step_d_silently(self) -> None:
         """ Helper function for running Detective move logic without visuals. """
 
+        if self.state.winner:
+            return
+
         d_move_count = 0
         for detective in self.detectives:
             self.state.set_current_player(detective.name)
@@ -326,6 +329,9 @@ class Game:
 
     def _step_x_silently(self) -> None:
         """ Helper function for running Mr. X's move logic without visuals. """
+
+        if self.state.winner:
+            return
 
         self.state.set_current_player('x')
         x_ticket, x_node = self.mr_x.make_move(self.state)

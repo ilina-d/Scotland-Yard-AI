@@ -1,5 +1,4 @@
 # TODO
-- Find a better implementation for the scheduler.
 - Implement a greedy Detective player that moves towards the closest potential Mr. X position.
 - Implement a greedy Mr. X that runs away.
 - Implement scripted players that occasionally make bad or random moves for training purposes.
@@ -23,6 +22,10 @@
 ---
 
 # Latest Changes
-Fixed incorrect Mr. X potential position calculations.
-- Fixed `Graph` retaining the same potential Mr. X positions between games.
+LR Scheduler update and small game crash fix.
+- `MrXTrainer` and `DetectiveTrainer` changes:
+  - Added default arguments.
+  - Replaced the scheduler with a custom warmup-plateau-decay function.
+  - Adjusted the logs to show the new learning rate updates.
+- Fixed `Game` running move logic after a winner has been determined.
 - Updated TODO.

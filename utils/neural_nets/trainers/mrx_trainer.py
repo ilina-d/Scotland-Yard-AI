@@ -1,12 +1,11 @@
 import torch
 from torch import optim
-from torch_geometric.utils import segment
-
 from utils.neural_nets.mrx_nets import BaseMrXNet
-from utils.players import BasePlayer, TrainingMrXNetPlayer
+from utils.players import BasePlayer, TrainingMrXNetPlayer, RandomPlayer
 from utils.game import Game
 from torch.nn import functional as F
 import os
+
 
 class MrXTrainer:
     """ GNN Trainer for the Mr. X Players. """
@@ -59,9 +58,10 @@ class MrXTrainer:
 
 
     @classmethod
-    def train(cls, mrx_net: BaseMrXNet, lr: float, wd: float, epochs: int, opponent_r: BasePlayer,
-              opponent_g: BasePlayer, opponent_b: BasePlayer, opponent_o: BasePlayer, opponent_p: BasePlayer,
-              gamma: float, value_coef: float, entropy_coef: float, update_freq: str = 'per_game') -> None:
+    def train(cls, mrx_net: BaseMrXNet, lr: float = 3e-4, wd: float = 1e-4, epochs: int = 10_000,
+              opponent_r: BasePlayer = None, opponent_g: BasePlayer = None, opponent_b: BasePlayer = None,
+              opponent_o: BasePlayer = None, opponent_p: BasePlayer = None, gamma: float = 0.99,
+              value_coef: float = 0.5, entropy_coef: float = 0.003, update_freq: str = 'per_game') -> None:
         """
         Train the Mr. X Net.
 
@@ -70,11 +70,11 @@ class MrXTrainer:
             lr: Learning rate.
             wd: Weight decay.
             epochs: Number of epochs.
-            opponent_r: The R Detective player.
-            opponent_g: The G Detective player.
-            opponent_b: The B Detective player.
-            opponent_o: The O Detective player.
-            opponent_p: The P Detective player.
+            opponent_r: The R Detective player (defaults to RandomPlayer).
+            opponent_g: The G Detective player (defaults to RandomPlayer).
+            opponent_b: The B Detective player (defaults to RandomPlayer).
+            opponent_o: The O Detective player (defaults to RandomPlayer).
+            opponent_p: The P Detective player (defaults to RandomPlayer).
             gamma: Per-move discount factor.
             value_coef: Weight of the value head loss.
             entropy_coef: Weight of the entropy bonus (encourages exploration).
@@ -82,13 +82,36 @@ class MrXTrainer:
                          (Options are: 'per_game', 'per_round' and 'per_reveal').
         """
 
+        epoch_spaces = len(str(epochs))
+
+        if opponent_r is None:
+            opponent_r = RandomPlayer(name = 'r')
+        if opponent_g is None:
+            opponent_g = RandomPlayer(name = 'g')
+        if opponent_b is None:
+            opponent_b = RandomPlayer(name = 'b')
+        if opponent_o is None:
+            opponent_o = RandomPlayer(name = 'o')
+        if opponent_p is None:
+            opponent_p = RandomPlayer(name = 'p')
+
         cls._training_logs = ''
         cls._log(f'{mrx_net.__class__.__name__} Structure Details:\n{mrx_net}\n\n')
 
-        epoch_spaces = len(str(epochs))
+        steps_per_episode = {'per_game': 1, 'per_reveal': 5, 'per_round': 24}[update_freq]
+        total_steps = epochs * steps_per_episode
+        warmup, final_frac, plateau = 200, 0.1, int(0.3 * total_steps)
+
+        def lr_lambda(step):
+            if step < warmup:
+                return (step + 1) / warmup
+            if step < plateau:
+                return 1.0
+            progress = min(1.0, (step - warmup) / max(1, total_steps - warmup))
+            return 1.0 - (1.0 - final_frac) * progress
 
         optimizer = optim.AdamW(mrx_net.parameters(), lr = lr, weight_decay = wd)
-        scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max = epochs, eta_min = 1e-5)
+        scheduler = optim.lr_scheduler.LambdaLR(optimizer, lr_lambda)
 
         cls._log(
             f'{mrx_net.__class__.__name__} Training Details:\n'
@@ -126,9 +149,7 @@ class MrXTrainer:
                 always_show_x = False
             )
 
-            round_count = 0
             while True:
-                round_count += 1
                 move_logs, winner = cls._play_episode(game, update_freq)
 
                 log_probs = torch.stack(move_logs['conf'])
@@ -141,7 +162,7 @@ class MrXTrainer:
                     next_values = torch.cat([past_values[1:].detach(), past_values.new_tensor([final_reward / gamma])])
 
                 else:
-                    winner_info = ' '
+                    winner_info = ''
                     with torch.no_grad():
                         _, post_value = mrx_net.get_processed_output(
                             game.state, value_as_tensor = True, value_only = True
@@ -162,21 +183,15 @@ class MrXTrainer:
                 optimizer.step()
                 scheduler.step()
 
-                segment_info = ''
-                if update_freq == 'per_round':
-                    segment_info = f'| Round: {round_count:<2} '
-                elif update_freq == 'per_reveal':
-                    segment_info = f'| Total steps: {game.state.x_step_count:<2} '
-
-                cls._log(
-                    f'* Epoch: {epoch:<{epoch_spaces}} '
-                    f'{segment_info}'
-                    f'| Winner: {winner_info} '
-                    f'| Loss: {loss.item():<12.6f}'
-                )
-
                 if winner:
                     break
+
+            cls._log(
+                f'* Epoch: {epoch:<{epoch_spaces}} '
+                f'| Winner: {winner_info} '
+                f'| LR: {scheduler.get_last_lr()[0]:<12.6f} '
+                f'| Loss: {loss.item():<12.6f}'
+            )
 
         mrx_net.eval()
         cls._log('\nTraining finished.')

@@ -1,11 +1,11 @@
 from torch import nn
 from torch.nn import ModuleList, ReLU, Linear, Tanh
 from torch_geometric.nn import RGCNConv
-from .base_detective_net import BaseDetectiveNet
+from .base_mrx_net import BaseMrXNet
 
 
-class TestDetectiveNet(BaseDetectiveNet):
-    """ Basic detective GNN for testing. """
+class MrXNet3L(BaseMrXNet):
+    """ Basic 3-layer Mr. X GNN. """
 
     def __init__(self) -> None:
         super().__init__()
@@ -25,6 +25,12 @@ class TestDetectiveNet(BaseDetectiveNet):
             Linear(64, self.NUM_TICKETS)
         ])
 
+        self.double_head = ModuleList([
+            Linear(64, 64),
+            ReLU(),
+            Linear(64, 1)
+        ])
+
         self.value_head = ModuleList([
             Linear(3 * 64, 64),
             ReLU(),
@@ -32,10 +38,11 @@ class TestDetectiveNet(BaseDetectiveNet):
             Tanh()
         ])
 
-        nn.init.normal_(self.policy_head[-1].weight, std = 0.01)
-        nn.init.zeros_(self.policy_head[-1].bias)
+        for head in (self.policy_head, self.double_head):
+            nn.init.normal_(head[-1].weight, std = 0.01)
+            nn.init.zeros_(head[-1].bias)
 
         self.to(self.device)
 
 
-__all__ = ['TestDetectiveNet']
+__all__ = ['MrXNet3L']
