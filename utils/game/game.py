@@ -53,6 +53,8 @@ class Game:
 
         self.state = State()
         self.graph = Graph()
+        self.graph.reset()
+
         self.display = Display(self.state, wait_after_move, always_show_x) if visuals else None
         self._game_phase = 'x'
         self._d_move_count = 0

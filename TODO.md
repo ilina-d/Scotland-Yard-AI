@@ -1,4 +1,8 @@
 # TODO
+- Find a better implementation for the scheduler.
+- Implement a greedy Detective player that moves towards the closest potential Mr. X position.
+- Implement a greedy Mr. X that runs away.
+- Implement scripted players that occasionally make bad or random moves for training purposes.
 - Visual-related changes:
   - When Mr. X is revealed, place a permanent indicator on his location.
   - If a detective controlled by a user has no valid moves, their turn is skipped without notice.
@@ -6,7 +10,6 @@
   - Change the Mr. X travel log to clearly indicate at which moves he appears.
   - Add control hints (SPACE for un-pausing wait after turn).
   - Hovering over a player token makes it transparent so you can see the node they're on.
-- Add player that moves towards Mr. X's last known location.
 
 ---
 
@@ -20,9 +23,6 @@
 ---
 
 # Latest Changes
-Fully implemented GNN Trainers.
-- Separated Detective move logic from `_new_round_silently()` in Game.
-- Implemented Mr. X Trainer with 3 modes of update frequency: per-game, per-round, and per-reveal.
-- Added per-reveal as an option for Detective training.
-- Implemented `TrainingMrXNetPlayer`.
+Fixed incorrect Mr. X potential position calculations.
+- Fixed `Graph` retaining the same potential Mr. X positions between games.
 - Updated TODO.

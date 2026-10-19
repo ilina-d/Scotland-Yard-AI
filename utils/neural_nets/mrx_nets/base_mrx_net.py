@@ -5,6 +5,7 @@ from torch_geometric.nn import RGCNConv, GATConv
 from torch_geometric.data import Data
 from utils.helpers import Graph, State
 
+
 class BaseMrXNet(nn.Module):
     """ Base Mr. X GNN. """
 

@@ -9,6 +9,9 @@ class Graph:
 
     _instance: 'Graph' = None
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    edge_index: torch.Tensor = None
+    edge_attr: torch.Tensor = None
+    edge_type: torch.Tensor = None
 
     num_nodes: int = 199
     num_taxi_edges: int = 345
@@ -17,7 +20,12 @@ class Graph:
     num_ferry_edges: int = 3
     num_edge_types: int = 4
     graph_data_path: str = 'utils/helpers/graph_data.csv'
-    _potential_x_pos: list[int] = []
+
+    routes: dict[str, dict[int, set[int]]] = {}
+    potential_x_pos: list[int] = []
+
+    db: Database = None
+    _db_rows: list[dict[str, int | str]] = []
 
     # Node features for Mr. X:
     # 0 : Is Mr X truly on this node? (0 or 1)
@@ -26,17 +34,19 @@ class Graph:
     # 3 : Is this node reachable with a metro ticket? (0 or 1)
     # 4 : Is this node reachable with a black ticket? (0 or 1)
     # 5 : On Mr X's node, can he use a double ticket at the moment? (0 or 1)
+    # 6 : On Mr X's node, how many remaining black tickets does he have? (0 to 5 normalized)
+    # 7 : On Mr X's node, how many remaining double tickets does he have? (0 to 2 normalized)
     #
-    # 6 : Do detectives think Mr X might be here? (0 or 1)
-    # 7 : Is there a Detective on this node? (0 or 1)
-    # 8 : Could a Detective get to this node in the next move? (0 or 1)
-    # 9 : The number of taxi tickets the Detective on this node has. (0 to 11 normalized)
-    # 10: The number of bus tickets the Detective on this node has. (0 to 8 normalized)
-    # 11: The number of metro tickets the Detective on this node has. (0 to 4 normalized)
+    # 8 : Do detectives think Mr X might be here? (0 or 1)
+    # 9 : Is there a Detective on this node? (0 or 1)
+    # 10: Could a Detective get to this node in the next move? (0 or 1)
+    # 11: The number of taxi tickets the Detective on this node has. (0 to 11 normalized)
+    # 12: The number of bus tickets the Detective on this node has. (0 to 8 normalized)
+    # 13: The number of metro tickets the Detective on this node has. (0 to 4 normalized)
     #
-    # 12: Round number. (1 to 24 normalized)
-    # 13: Number of rounds until Mr. X's next reveal. (0 to 5 normalized)
-    feature_shape_x: list[list[int | float]] = [[0] * 14 for _ in range(num_nodes)]
+    # 14: Round number. (1 to 24 normalized)
+    # 15: Number of rounds until Mr. X's next reveal. (0 to 5 normalized)
+    feature_shape_x: list[list[int | float]] = [[0] * 16 for _ in range(num_nodes)]
 
     # Node features for Detective:
     # 0 : Is the Detective on this node? (0 or 1)
@@ -69,22 +79,13 @@ class Graph:
             return cls._instance
 
         cls._instance = super().__new__(cls)
-
         cls._instance.use_neo4j = use_neo4j
-
 
         cls._instance.routes = {'taxi': {}, 'bus': {}, 'metro': {}, 'ferry': {}}
 
-        start_nodes = []
-        end_nodes = []
-        route_attrs = []
-        route_types = []
-        route_encoder = {
-            'taxi' : [1, 0, 0, 0],
-            'bus' : [0, 1, 0, 0],
-            'metro' : [0, 0, 1, 0],
-            'ferry' : [0, 0, 0, 1]
-        }
+        start_nodes, end_nodes = [], []
+        route_attrs, route_types = [], []
+        route_encoder = {'taxi': [1, 0, 0, 0], 'bus': [0, 1, 0, 0], 'metro': [0, 0, 1, 0], 'ferry': [0, 0, 0, 1]}
 
         cls._instance._db_rows = []
         with open(cls._instance.graph_data_path, 'r') as file:
@@ -115,21 +116,29 @@ class Graph:
                     cls._instance.routes[route][n2] = set()
                 cls._instance.routes[route][n2].add(n1)
 
-                cls._instance._db_rows.append({'a' : n1, 'b' : n2, 'type' : route.strip()})
+                cls._instance._db_rows.append({'a': n1, 'b': n2, 'type': route.strip()})
 
-        cls._instance.edge_index = torch.tensor([start_nodes, end_nodes], dtype = torch.long).to(cls.device)
-        cls._instance.edge_attr = torch.tensor(route_attrs, dtype = torch.float).to(cls.device)
-        cls._instance.edge_type = torch.tensor(route_types).to(cls.device)
+        cls._instance.edge_index = torch.tensor([start_nodes, end_nodes], dtype = torch.long).to(cls._instance.device)
+        cls._instance.edge_attr = torch.tensor(route_attrs, dtype = torch.float).to(cls._instance.device)
+        cls._instance.edge_type = torch.tensor(route_types).to(cls._instance.device)
 
-        if not cls._instance.use_neo4j:
-            return cls._instance
-
-        cls._instance.db = Database()
-        if not cls._instance.is_db_loaded():
-            cls._instance.flush_db()
-            cls._instance.fill_db()
+        cls._instance.reset()
 
         return cls._instance
+
+
+    def reset(self) -> None:
+        """ Reset all graph data to default. """
+
+        self.potential_x_pos = list(State.X_STARTER_NODES)
+
+        if not self.use_neo4j:
+            return
+
+        self.db = Database()
+        if not self.is_db_loaded():
+            self.flush_db()
+            self.fill_db()
 
 
     def is_db_loaded(self) -> bool:
@@ -210,33 +219,39 @@ class Graph:
         # 5 : On Mr X's node, can he use a double ticket at the moment? (0 or 1)
         features[x_node - 1][5] = int(state.can_use_double)
 
-        # 6 : Do detectives think Mr X might be here? (0 or 1)
+        # 6 : On Mr X's node, how many remaining black tickets does he have? (0 to 5 normalized)
+        features[x_node - 1][6] = state.tickets['x']['black'] / 5
+
+        # 7 : On Mr X's node, how many remaining double tickets does he have? (0 to 2 normalized)
+        features[x_node - 1][6] = state.tickets['x']['double'] / 2
+
+        # 8 : Do detectives think Mr X might be here? (0 or 1)
         for node in self.get_potential_x_pos(state):
-            features[node - 1][6] = 1
+            features[node - 1][8] = 1
 
-        # 7 : Is there a Detective on this node? (0 or 1)
+        # 9 : Is there a Detective on this node? (0 or 1)
         for node in detectives_pos.values():
-            features[node - 1][7] = 1
+            features[node - 1][9] = 1
 
-        # 8 : Could a Detective get to this node in the next move? (0 or 1)
+        # 10: Could a Detective get to this node in the next move? (0 or 1)
         for det in detectives_pos.keys():
             for node in self.get_reachable_neighbors(state, det):
-                features[node - 1][8] = 1
+                features[node - 1][10] = 1
 
-        # 9 : The number of taxi tickets the Detective on this node has. (0 to 11 normalized)
-        # 10: The number of bus tickets the Detective on this node has. (0 to 8 normalized)
-        # 11: The number of metro tickets the Detective on this node has. (0 to 4 normalized)
+        # 11: The number of taxi tickets the Detective on this node has. (0 to 11 normalized)
+        # 12: The number of bus tickets the Detective on this node has. (0 to 8 normalized)
+        # 13: The number of metro tickets the Detective on this node has. (0 to 4 normalized)
         for det, node in detectives_pos.items():
-            features[node - 1][9] = state.tickets[det]['taxi'] / 11
-            features[node - 1][10] = state.tickets[det]['bus'] / 8
-            features[node - 1][11] = state.tickets[det]['metro'] / 4
+            features[node - 1][11] = state.tickets[det]['taxi'] / 11
+            features[node - 1][12] = state.tickets[det]['bus'] / 8
+            features[node - 1][13] = state.tickets[det]['metro'] / 4
 
-        # 12: Round number. (1 to 24 normalized)
-        # 13: Number of rounds until Mr. X's next reveal. (0 to 5 normalized)
+        # 14: Round number. (1 to 24 normalized)
+        # 15: Number of rounds until Mr. X's next reveal. (0 to 5 normalized)
         rounds_until_reveal = state.get_steps_until_reveal()
         for node in range(self.num_nodes):
-            features[node][12] = state.x_step_count / 24
-            features[node][13] = rounds_until_reveal / 5
+            features[node][14] = state.x_step_count / 24
+            features[node][15] = rounds_until_reveal / 5
 
         return features
 
@@ -434,25 +449,21 @@ class Graph:
         """
 
         if not update:
-            return self._potential_x_pos
-
-        if len(state.travel_logs) == 0:
-            self._potential_x_pos = state.X_STARTER_NODES
-            return self._potential_x_pos
+            return self.potential_x_pos
 
         last_action = state.travel_logs[-1]
         if isinstance(last_action, int):
-            self._potential_x_pos = [last_action]
-            return self._potential_x_pos
+            self.potential_x_pos = [last_action]
+            return self.potential_x_pos
 
         new_potential_x_pos = set()
-        for node in self._potential_x_pos:
+        for node in self.potential_x_pos:
             new_potential_x_pos.update(
                 self.get_reachable_neighbors_by_ticket(state, 'x', ticket = last_action, from_node = node)
             )
 
-        self._potential_x_pos = list(new_potential_x_pos)
-        return self._potential_x_pos
+        self.potential_x_pos = list(new_potential_x_pos)
+        return self.potential_x_pos
 
 
 __all__ = ["Graph"]
