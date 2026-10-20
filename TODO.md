@@ -22,10 +22,4 @@
 ---
 
 # Latest Changes
-LR Scheduler update and small game crash fix.
-- `MrXTrainer` and `DetectiveTrainer` changes:
-  - Added default arguments.
-  - Replaced the scheduler with a custom warmup-plateau-decay function.
-  - Adjusted the logs to show the new learning rate updates.
-- Fixed `Game` running move logic after a winner has been determined.
-- Updated TODO.
+Added a semi-random Mr. X net player.
