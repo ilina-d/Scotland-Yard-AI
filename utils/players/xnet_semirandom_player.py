@@ -1,13 +1,13 @@
-from .mrx_net_player import MrXNetPlayer
+from .xnet_player import XNetPlayer
 from utils.helpers import State
-from utils.neural_nets.mrx_nets import BaseMrXNet
+from utils.neural_nets.mrx_nets import BaseXNet
 import random
 
 
-class MrXSemiRandomNetPlayer(MrXNetPlayer):
+class XNetSemiRandomPlayer(XNetPlayer):
     """ Player agent that follows a given policy with occasional random moves. """
 
-    def __init__(self, net: BaseMrXNet, rand_freq: float) -> None:
+    def __init__(self, net: BaseXNet, rand_freq: float) -> None:
         """
         Create a player instance.
 
@@ -32,4 +32,4 @@ class MrXSemiRandomNetPlayer(MrXNetPlayer):
         return super().make_move(state)
 
 
-__all__ = ['MrXSemiRandomNetPlayer']
+__all__ = ['XNetSemiRandomPlayer']

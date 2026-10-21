@@ -6,7 +6,7 @@ from torch_geometric.data import Data
 from utils.helpers import Graph, State
 
 
-class BaseDetectiveNet(nn.Module):
+class BaseDNet(nn.Module):
     """ Base Detective GNN. """
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -151,4 +151,4 @@ class BaseDetectiveNet(nn.Module):
         return ticket, node
 
 
-__all__ = ['BaseDetectiveNet']
+__all__ = ['BaseDNet']

@@ -1,7 +1,7 @@
 import torch
 from torch import optim
-from utils.neural_nets.mrx_nets import BaseMrXNet
-from utils.players import BasePlayer, TrainingMrXNetPlayer, RandomPlayer
+from utils.neural_nets.mrx_nets import BaseXNet
+from utils.players import BasePlayer, TrainingXNetPlayer, RandomPlayer
 from utils.game import Game
 from torch.nn import functional as F
 import os
@@ -29,7 +29,7 @@ class MrXTrainer:
             game._step_d_silently()
             winner = game.state.winner
 
-        elif update_freq == 'per_reveal':
+        elif update_freq == 'per_show':
             while True:
                 game._step_x_silently()
                 game._step_d_silently()
@@ -57,8 +57,33 @@ class MrXTrainer:
         return all_move_logs, winner
 
 
+    @staticmethod
+    def _compute_gae(values: torch.Tensor, final_reward: float, last_value: float,
+                     gamma: float, lam: float) -> tuple[torch.Tensor, torch.Tensor]:
+        """ Helper function for computing Generalized Advantage Estimation. """
+
+        move_count = len(values)
+        advantages = torch.zeros(move_count)
+        future_adv = 0.0
+
+        for move in reversed(range(move_count)):
+            if move == move_count - 1:
+                new_val = last_value
+                reward = final_reward
+            else:
+                new_val = values[move + 1]
+                reward = 0.0
+
+            surprise = reward + gamma * new_val - values[move]
+            future_adv = surprise + gamma * lam * future_adv
+            advantages[move] = future_adv
+
+        targets = advantages + values
+        return advantages, targets
+
+
     @classmethod
-    def train(cls, mrx_net: BaseMrXNet, lr: float = 3e-4, wd: float = 1e-4, epochs: int = 10_000,
+    def train(cls, mrx_net: BaseXNet, lr: float = 3e-4, wd: float = 1e-4, epochs: int = 10_000,
               opponent_r: BasePlayer = None, opponent_g: BasePlayer = None, opponent_b: BasePlayer = None,
               opponent_o: BasePlayer = None, opponent_p: BasePlayer = None, gamma: float = 0.99,
               value_coef: float = 0.5, entropy_coef: float = 0.003, update_freq: str = 'per_game') -> None:
@@ -79,7 +104,7 @@ class MrXTrainer:
             value_coef: Weight of the value head loss.
             entropy_coef: Weight of the entropy bonus (encourages exploration).
             update_freq: How often weight updates occur when training
-                         (Options are: 'per_game', 'per_round' and 'per_reveal').
+                         (Options are: 'per_game', 'per_round' and 'per_show').
         """
 
         epoch_spaces = len(str(epochs))
@@ -98,7 +123,7 @@ class MrXTrainer:
         cls._training_logs = ''
         cls._log(f'{mrx_net.__class__.__name__} Structure Details:\n{mrx_net}\n\n')
 
-        steps_per_episode = {'per_game': 1, 'per_reveal': 5, 'per_round': 24}[update_freq]
+        steps_per_episode = {'per_game': 1, 'per_show': 5, 'per_round': 24}[update_freq]
         total_steps = epochs * steps_per_episode
         warmup, final_frac, plateau = 200, 0.1, int(0.3 * total_steps)
 
@@ -135,7 +160,7 @@ class MrXTrainer:
         mrx_net.train()
 
         for epoch in range(1, epochs + 1):
-            mr_x = TrainingMrXNetPlayer(mrx_net)
+            mr_x = TrainingXNetPlayer(mrx_net)
 
             game = Game(
                 detective_r = opponent_r,
@@ -159,19 +184,19 @@ class MrXTrainer:
                 if winner:
                     final_reward = -1.0 if winner == 'Detectives' else 1.0
                     winner_info = 'D' if winner == 'Detectives' else 'X'
-                    next_values = torch.cat([past_values[1:].detach(), past_values.new_tensor([final_reward / gamma])])
+                    advantages, targets = cls._compute_gae(past_values.detach(), final_reward, 0.0, gamma, lam = 0.95)
 
                 else:
+                    final_reward = 0.0
                     winner_info = ''
                     with torch.no_grad():
                         _, post_value = mrx_net.get_processed_output(
                             game.state, value_as_tensor = True, value_only = True
                         )
-                    next_values = torch.cat([past_values[1:].detach(), post_value.reshape(1)])
+                    advantages, targets = cls._compute_gae(
+                        past_values.detach(), final_reward, post_value.item(), gamma, lam = 0.95
+                    )
 
-                targets = (gamma * next_values).detach()
-
-                advantages = (targets - past_values).detach()
                 policy_loss = -(log_probs * advantages).mean()
                 value_loss = F.mse_loss(past_values, targets)
                 entropy = entropies.mean()
@@ -198,7 +223,7 @@ class MrXTrainer:
 
 
     @classmethod
-    def save(cls, mrx_net: BaseMrXNet, file_name: str, comment: str, logs: bool = True) -> None:
+    def save(cls, mrx_net: BaseXNet, file_name: str, comment: str, logs: bool = True) -> None:
         """
         Save the weights of a trained Mr. X Net to a local file (at trained_nets/mrx_nets/file_name.pt).
 
@@ -218,3 +243,5 @@ class MrXTrainer:
         with open(f'trained_nets/mrx_nets/{file_name}_comment.txt', 'w') as file:
             file.write(comment)
 
+
+__all__ = ['MrXTrainer']

@@ -1,28 +1,27 @@
-from .detective_net_player import DetectiveNetPlayer
-from utils.neural_nets.detective_nets import BaseDetectiveNet
+from .xnet_player import XNetPlayer
+from utils.neural_nets.mrx_nets import BaseXNet
 from utils.helpers import State
 import torch
 
-class TrainingDetectiveNetPlayer(DetectiveNetPlayer):
-    """ Player Agent that stores additional info useful for training Detective GNNs. """
+class TrainingXNetPlayer(XNetPlayer):
+    """ Player Agent that stores additional info useful for training Mr. X GNNs. """
 
-    def __init__(self, name: str, net: BaseDetectiveNet) -> None:
-        super().__init__(name, net)
+    def __init__(self, net: BaseXNet) -> None:
+        super().__init__(net)
 
         self.net.train()
         self.move_logs = []
 
 
     def make_move(self, state: State) -> tuple[str, int | None]:
-        distribution, value_before = self.net.get_processed_output(state, self.name, value_as_tensor = True)
+        distribution, value_before = self.net.get_processed_output(state, value_as_tensor = True)
         value_before = value_before.reshape(())
 
         if len(distribution) == 0:
             self.move_logs.append({
                 'conf': value_before.new_zeros(()),
                 'value_before': value_before,
-                'entropy': value_before.new_zeros(()),
-                'acted': False
+                'entropy': value_before.new_zeros(())
             })
             return '', None
 
@@ -37,11 +36,11 @@ class TrainingDetectiveNetPlayer(DetectiveNetPlayer):
         self.move_logs.append({
             'conf': conf,
             'value_before': value_before,
-            'entropy': entropy,
-            'acted': True
+            'entropy': entropy
         })
 
         return ticket, node
 
 
-__all__ = ['TrainingDetectiveNetPlayer']
+__all__ = ['TrainingXNetPlayer']
+

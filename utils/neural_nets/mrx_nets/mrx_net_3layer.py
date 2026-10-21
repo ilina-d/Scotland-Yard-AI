@@ -1,10 +1,10 @@
 from torch import nn
 from torch.nn import ModuleList, ReLU, Linear, Tanh
 from torch_geometric.nn import RGCNConv
-from .base_mrx_net import BaseMrXNet
+from .base_mrx_net import BaseXNet
 
 
-class MrXNet3L(BaseMrXNet):
+class XNet3L(BaseXNet):
     """ Basic 3-layer Mr. X GNN. """
 
     def __init__(self) -> None:
@@ -45,4 +45,4 @@ class MrXNet3L(BaseMrXNet):
         self.to(self.device)
 
 
-__all__ = ['MrXNet3L']
+__all__ = ['XNet3L']

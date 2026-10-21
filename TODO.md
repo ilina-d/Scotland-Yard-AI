@@ -2,6 +2,7 @@
 - Implement a greedy Detective player that moves towards the closest potential Mr. X position.
 - Implement a greedy Mr. X that runs away.
 - Implement scripted players that occasionally make bad or random moves for training purposes.
+- Try training `per_game` first and `per_show` after the critic gets good, but give +1 or -1 rewards at the end of the segment.
 - Visual-related changes:
   - When Mr. X is revealed, place a permanent indicator on his location.
   - If a detective controlled by a user has no valid moves, their turn is skipped without notice.
@@ -22,4 +23,12 @@
 ---
 
 # Latest Changes
-Added a semi-random Mr. X net player.
+Simulator implementation, trainer updates, and fixes.
+- Implemented Generalized Advantage Estimation in `DetectiveTrainer` and `MrXTrainer`.
+- Implemented `GreedyDetPlayer` that moves towards potential Mr. X positions when possible.
+- Implemented a multi-processed `Simulator` for faster win-rate comparisons.
+- `Graph` changes:
+  - Fixed potential Mr. X positions collapsing after Mr. X uses his last black ticket.
+  - Fixed incorrect double ticket index when building Mr. X GNN features.
+- Refactored GNN related files and class names.
+- Updated TODO.

@@ -1,12 +1,12 @@
 from .base_player import BasePlayer
-from utils.neural_nets.mrx_nets import BaseMrXNet
+from utils.neural_nets.mrx_nets import BaseXNet
 from utils.helpers import State
 
 
-class MrXNetPlayer(BasePlayer):
+class XNetPlayer(BasePlayer):
     """ Player agent that plays by a GNN's policy. """
 
-    def __init__(self, net: BaseMrXNet) -> None:
+    def __init__(self, net: BaseXNet) -> None:
         """
         Create a player instance.
 

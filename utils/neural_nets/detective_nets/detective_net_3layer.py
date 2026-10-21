@@ -1,10 +1,10 @@
 from torch import nn
 from torch.nn import ModuleList, ReLU, Linear, Tanh
 from torch_geometric.nn import RGCNConv
-from .base_detective_net import BaseDetectiveNet
+from .base_detective_net import BaseDNet
 
 
-class DetectiveNet3L(BaseDetectiveNet):
+class DNet3L(BaseDNet):
     """ Basic 3-layer Detective GNN. """
 
     def __init__(self) -> None:
@@ -38,4 +38,4 @@ class DetectiveNet3L(BaseDetectiveNet):
         self.to(self.device)
 
 
-__all__ = ['DetectiveNet3L']
+__all__ = ['DNet3L']

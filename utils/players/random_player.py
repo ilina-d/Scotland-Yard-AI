@@ -1,6 +1,5 @@
 from .base_player import BasePlayer
 from utils.helpers import State
-
 import random
 
 

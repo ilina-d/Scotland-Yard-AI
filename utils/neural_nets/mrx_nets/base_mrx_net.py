@@ -6,7 +6,7 @@ from torch_geometric.data import Data
 from utils.helpers import Graph, State
 
 
-class BaseMrXNet(nn.Module):
+class BaseXNet(nn.Module):
     """ Base Mr. X GNN. """
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -166,4 +166,4 @@ class BaseMrXNet(nn.Module):
         return self.TICKET_NAMES[ticket], node + 1
 
 
-__all__ = ['BaseMrXNet']
+__all__ = ['BaseXNet']

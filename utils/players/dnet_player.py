@@ -1,12 +1,12 @@
 from .base_player import BasePlayer
-from utils.neural_nets.detective_nets import BaseDetectiveNet
+from utils.neural_nets.detective_nets import BaseDNet
 from utils.helpers import State
 
 
-class DetectiveNetPlayer(BasePlayer):
+class DNetPlayer(BasePlayer):
     """ Player agent that plays by a GNN's policy. """
 
-    def __init__(self, name: str, net: BaseDetectiveNet) -> None:
+    def __init__(self, name: str, net: BaseDNet) -> None:
         """
         Create a player instance.
 
@@ -24,4 +24,4 @@ class DetectiveNetPlayer(BasePlayer):
         return self.net.get_action(state, self.name)
 
 
-__all__ = ['DetectiveNetPlayer']
+__all__ = ['DNetPlayer']

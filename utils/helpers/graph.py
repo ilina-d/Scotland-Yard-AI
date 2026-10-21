@@ -223,7 +223,7 @@ class Graph:
         features[x_node - 1][6] = state.tickets['x']['black'] / 5
 
         # 7 : On Mr X's node, how many remaining double tickets does he have? (0 to 2 normalized)
-        features[x_node - 1][6] = state.tickets['x']['double'] / 2
+        features[x_node - 1][7] = state.tickets['x']['double'] / 2
 
         # 8 : Do detectives think Mr X might be here? (0 or 1)
         for node in self.get_potential_x_pos(state):
@@ -350,7 +350,7 @@ class Graph:
 
 
     def get_reachable_neighbors_by_ticket(self, state: State, player: str, ticket: str,
-                                          from_node: int = None) -> list[int]:
+                                          from_node: int = None, skip_ticket_check: bool = False) -> list[int]:
         """
         Get reachable neighboring stations based on the player's remaining tickets of the specified type.
 
@@ -360,25 +360,26 @@ class Graph:
             ticket: The type of ticket ('taxi', 'bus', 'metro', 'black').
             from_node: The node to use as the player's current position.
                        If not specified, the player's real position will be used.
+            skip_ticket_check: Whether to skip the available tickets check.
 
         Returns:
             The reachable neighboring stations.
         """
 
         if self.use_neo4j:
-            return self._get_reachable_by_ticket_neo4j(state, player, ticket, from_node)
+            return self._get_reachable_by_ticket_neo4j(state, player, ticket, from_node, skip_ticket_check)
 
-        return self._get_reachable_by_ticket_python(state, player, ticket, from_node)
+        return self._get_reachable_by_ticket_python(state, player, ticket, from_node, skip_ticket_check)
 
 
     def _get_reachable_by_ticket_neo4j(self, state: State, player: str, ticket: str,
-                                       from_node: int = None) -> list[int]:
+                                       from_node: int = None, skip_ticket_check: bool = False) -> list[int]:
         """ Helper function for get_reachable_neighbors_by_ticket. """
 
-        if state.tickets[player][ticket] == 0:
+        if not skip_ticket_check and state.tickets[player][ticket] == 0:
             return []
 
-        player_station = state.positions[player] if not from_node else from_node
+        player_station = state.positions[player] if from_node is None else from_node
 
         query = "MATCH (s:Station {id: $player_station})-[:CONNECTED {type: $ticket_type}]->(neighbor:Station) " \
                 "RETURN DISTINCT neighbor.id AS node"
@@ -396,13 +397,13 @@ class Graph:
 
 
     def _get_reachable_by_ticket_python(self, state: State, player: str, ticket: str,
-                                        from_node: int = None) -> list[int]:
+                                        from_node: int = None, skip_ticket_check: bool = False) -> list[int]:
         """ Helper function for get_reachable_neighbors_by_ticket. """
 
-        if state.tickets[player][ticket] == 0:
+        if not skip_ticket_check and state.tickets[player][ticket] == 0:
             return []
 
-        player_station = state.positions[player] if not from_node else from_node
+        player_station = state.positions[player] if from_node is None else from_node
 
         if ticket == 'black':
             all_neighbors = set()
@@ -458,9 +459,9 @@ class Graph:
 
         new_potential_x_pos = set()
         for node in self.potential_x_pos:
-            new_potential_x_pos.update(
-                self.get_reachable_neighbors_by_ticket(state, 'x', ticket = last_action, from_node = node)
-            )
+            new_potential_x_pos.update(self.get_reachable_neighbors_by_ticket(
+                state, 'x', ticket = last_action, from_node = node, skip_ticket_check = True
+            ))
 
         self.potential_x_pos = list(new_potential_x_pos)
         return self.potential_x_pos

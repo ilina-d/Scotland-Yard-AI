@@ -1,7 +1,7 @@
 import torch
 from torch import optim
-from utils.neural_nets.detective_nets import BaseDetectiveNet
-from utils.players import BasePlayer, TrainingDetectiveNetPlayer, RandomPlayer
+from utils.neural_nets.detective_nets import BaseDNet
+from utils.players import BasePlayer, TrainingDNetPlayer, RandomPlayer
 from utils.game import Game
 from torch.nn import functional as F
 import os
@@ -65,8 +65,33 @@ class DetectiveTrainer:
         return all_move_logs, winner
 
 
+    @staticmethod
+    def _compute_gae(values: torch.Tensor, final_reward: float, last_value: float,
+                     gamma: float, lam: float) -> tuple[torch.Tensor, torch.Tensor]:
+        """ Helper function for computing Generalized Advantage Estimation. """
+
+        move_count = len(values)
+        advantages = torch.zeros(move_count)
+        future_adv = 0.0
+
+        for move in reversed(range(move_count)):
+            if move == move_count - 1:
+                new_val = last_value
+                reward = final_reward
+            else:
+                new_val = values[move + 1]
+                reward = 0.0
+
+            surprise = reward + gamma * new_val - values[move]
+            future_adv = surprise + gamma * lam * future_adv
+            advantages[move] = future_adv
+
+        targets = advantages + values
+        return advantages, targets
+
+
     @classmethod
-    def train(cls, detective_net: BaseDetectiveNet, lr: float = 3e-4, wd: float = 1e-4, epochs: int = 10_000,
+    def train(cls, detective_net: BaseDNet, lr: float = 3e-4, wd: float = 1e-4, epochs: int = 10_000,
               opponent: BasePlayer = None, gamma: float = 0.995, value_coef: float = 0.5, entropy_coef: float = 0.003,
               update_freq: str = 'per_game') -> None:
         """
@@ -126,11 +151,11 @@ class DetectiveTrainer:
         detective_net.train()
 
         for epoch in range(1, epochs + 1):
-            detective_r = TrainingDetectiveNetPlayer('r', detective_net)
-            detective_g = TrainingDetectiveNetPlayer('g', detective_net)
-            detective_b = TrainingDetectiveNetPlayer('b', detective_net)
-            detective_o = TrainingDetectiveNetPlayer('o', detective_net)
-            detective_p = TrainingDetectiveNetPlayer('p', detective_net)
+            detective_r = TrainingDNetPlayer('r', detective_net)
+            detective_g = TrainingDNetPlayer('g', detective_net)
+            detective_b = TrainingDNetPlayer('b', detective_net)
+            detective_o = TrainingDNetPlayer('o', detective_net)
+            detective_p = TrainingDNetPlayer('p', detective_net)
 
             game = Game(
                 detective_r = detective_r,
@@ -160,19 +185,19 @@ class DetectiveTrainer:
                 if winner:
                     final_reward = 1.0 if winner == 'Detectives' else -1.0
                     winner_info = 'D' if winner == 'Detectives' else 'X'
-                    next_values = torch.cat([past_values[1:].detach(), past_values.new_tensor([final_reward / gamma])])
+                    advantages, targets = cls._compute_gae(past_values.detach(), final_reward, 0.0, gamma, lam = 0.95)
 
                 else:
+                    final_reward = 0.0
                     winner_info = ''
                     with torch.no_grad():
                         _, post_value = detective_net.get_processed_output(
                             game.state, player = 'r', value_as_tensor = True, value_only = True
                         )
-                    next_values = torch.cat([past_values[1:].detach(), post_value.reshape(1)])
+                    advantages, targets = cls._compute_gae(
+                        past_values.detach(), final_reward, post_value.item(), gamma, lam = 0.95
+                    )
 
-                targets = (gamma * next_values).detach()
-
-                advantages = (targets - past_values).detach()
                 policy_loss = -(log_probs * advantages * acted).sum() / num_acted
                 value_loss = F.mse_loss(past_values, targets)
                 entropy = (entropies * acted).sum() / num_acted
@@ -199,7 +224,7 @@ class DetectiveTrainer:
 
 
     @classmethod
-    def save(cls, detective_net: BaseDetectiveNet, file_name: str, comment: str, logs: bool = True) -> None:
+    def save(cls, detective_net: BaseDNet, file_name: str, comment: str, logs: bool = True) -> None:
         """
         Save the weights of a trained Detective Net to a local file (at trained_nets/detective_nets/file_name.pt).
 
