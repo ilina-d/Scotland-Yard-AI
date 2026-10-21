@@ -86,7 +86,8 @@ class MrXTrainer:
     def train(cls, mrx_net: BaseXNet, lr: float = 3e-4, wd: float = 1e-4, epochs: int = 10_000,
               opponent_r: BasePlayer = None, opponent_g: BasePlayer = None, opponent_b: BasePlayer = None,
               opponent_o: BasePlayer = None, opponent_p: BasePlayer = None, gamma: float = 0.99,
-              value_coef: float = 0.5, entropy_coef: float = 0.003, update_freq: str = 'per_game') -> None:
+              value_coef: float = 0.5, entropy_coef: float = 0.003, update_freq: str = 'per_game',
+              warmup_perc: float = 0.02, plateau_perc: float = 0.18) -> None:
         """
         Train the Mr. X Net.
 
@@ -105,6 +106,8 @@ class MrXTrainer:
             entropy_coef: Weight of the entropy bonus (encourages exploration).
             update_freq: How often weight updates occur when training
                          (Options are: 'per_game', 'per_round' and 'per_show').
+            warmup_perc: The % of epochs that it takes to get to max lr.
+            plateau_perc: The % of epochs that train at max lr.
         """
 
         epoch_spaces = len(str(epochs))
@@ -125,14 +128,16 @@ class MrXTrainer:
 
         steps_per_episode = {'per_game': 1, 'per_show': 5, 'per_round': 24}[update_freq]
         total_steps = epochs * steps_per_episode
-        warmup, final_frac, plateau = 200, 0.1, int(0.3 * total_steps)
+        warmup_end = int(warmup_perc * total_steps)
+        plateau_end = int((warmup_perc + plateau_perc) * total_steps)
+        final_frac = 0.1
 
         def lr_lambda(step):
-            if step < warmup:
-                return (step + 1) / warmup
-            if step < plateau:
+            if step < warmup_end:
+                return (step + 1) / warmup_end
+            if step < plateau_end:
                 return 1.0
-            progress = min(1.0, (step - warmup) / max(1, total_steps - warmup))
+            progress = min(1.0, (step - plateau_end) / max(1, total_steps - plateau_end))
             return 1.0 - (1.0 - final_frac) * progress
 
         optimizer = optim.AdamW(mrx_net.parameters(), lr = lr, weight_decay = wd)

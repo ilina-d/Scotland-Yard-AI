@@ -6,7 +6,12 @@ import random
 class ExplorerPlayer(BasePlayer):
     """ Player agent that prefers moving towards unexplored nodes. """
 
-    seen_nodes: set[int] = set()
+    seen_nodes: set[int]
+
+    def __init__(self, name: str):
+        super().__init__(name = name)
+
+        self.seen_nodes = set()
 
     def make_move(self, state: State) -> tuple[str, int | None]:
         legal_moves = self.get_legal_moves(state)

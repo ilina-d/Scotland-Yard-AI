@@ -1,43 +1,42 @@
 from torch import nn
 import torch
 from torch.nn import functional as F
-from torch_geometric.nn import RGCNConv, GATConv
+from torch_geometric.nn import RGCNConv, GATConv, DeepGCNLayer
 from torch_geometric.data import Data
 from utils.helpers import Graph, State
 
 
-class BaseXNet(nn.Module):
-    """ Base Mr. X GNN. """
+class BaseDNet(nn.Module):
+    """ Base Detective GNN. """
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    NUM_TICKETS = 4
-    TICKET_NAMES = ('taxi', 'bus', 'metro', 'black')
+    NUM_TICKETS = 3
+    TICKET_NAMES = ('taxi', 'bus', 'metro')
 
     net_body: nn.ModuleList
     policy_head: nn.ModuleList
-    double_head: nn.ModuleList
     value_head: nn.ModuleList
 
 
     def __init__(self) -> None:
-        """ Create a new BaseMrXNet instance. """
+        """ Create a new BaseDetectiveNet instance. """
 
         super().__init__()
         self.graph = Graph()
 
-        self.IN_FEATURES = len(self.graph.feature_shape_x[0])
+        self.IN_FEATURES = len(self.graph.feature_shape_d[0])
         self.NUM_RELATIONS = self.graph.num_edge_types
 
 
     def load_weights(self, file_name: str) -> None:
         """
-        Load the weights from a pretrained network (at trained_nets/mrx_nets/file_name.pt).
+        Load the weights from a pretrained network (at trained_nets/detective_nets/file_name.pt).
 
         Arguments:
             file_name: The file name to load from.
         """
 
-        self.load_state_dict(torch.load(f'trained_nets/mrx_nets/{file_name}.pt', map_location = self.device))
+        self.load_state_dict(torch.load(f'trained_nets/detective_nets/{file_name}.pt', map_location = self.device))
 
 
     @staticmethod
@@ -58,6 +57,8 @@ class BaseXNet(nn.Module):
                 outputs = layer(outputs, edge_index, edge_type)
             elif isinstance(layer, GATConv):
                 outputs = layer(outputs, edge_index, edge_attr)
+            elif isinstance(layer, DeepGCNLayer):
+                outputs = layer(outputs, edge_index, edge_type)
             else:
                 outputs = layer(outputs)
 
@@ -65,31 +66,26 @@ class BaseXNet(nn.Module):
         for layer in self.policy_head:
             policy_output = layer(policy_output)
 
-        double_output = outputs[data.x[:, 0] == 1]
-        for layer in self.double_head:
-            double_output = layer(double_output)
-        double_output = double_output.squeeze(-1)
-
         self_emb = outputs[data.x[:, 0].argmax()].unsqueeze(0)
-        det_mean = self._masked_mean(outputs, data.x[:, 7] == 1)
-        mrx_mean = self._masked_mean(outputs, data.x[:, 6] == 1)
+        det_mean = self._masked_mean(outputs, data.x[:, 1] == 1)
+        mrx_mean = self._masked_mean(outputs, data.x[:, 2] == 1)
 
         value_output = torch.cat([self_emb, det_mean, mrx_mean], dim = -1)
         for layer in self.value_head:
             value_output = layer(value_output)
         value_output = value_output.squeeze(-1)
 
-        policy_output = torch.cat([policy_output.flatten(), double_output.flatten()])
         return policy_output, value_output
 
 
-    def get_processed_output(self, state: State, value_as_tensor: bool = False, value_only: bool = False) \
+    def get_processed_output(self, state: State, player: str, value_as_tensor: bool = False, value_only: bool = False) \
             -> tuple[list[tuple[int, str, torch.Tensor]], float | torch.Tensor]:
         """
         Get the processed output of the network for a given input.
 
         Arguments:
             state: The current game state.
+            player: Which detective is deciding ('r', 'g', 'b', 'o', or 'p').
             value_as_tensor: Whether to return the state evaluation as a tensor.
             value_only: Whether to return early without processing the action tuples.
 
@@ -98,7 +94,6 @@ class BaseXNet(nn.Module):
             Second, the estimated evaluation of the given state as a float or tensor.
         """
 
-        player = 'x'
         data = self.graph.get_gnn_input(state, player).to(self.device)
         policy_output, value_output = self.forward(data)
 
@@ -108,26 +103,23 @@ class BaseXNet(nn.Module):
         if value_only:
             return [], value_output
 
-        legal_mask = torch.zeros(self.NUM_TICKETS * self.graph.num_nodes + 1, dtype = torch.bool)
+        legal_mask = torch.zeros(self.graph.num_nodes, self.NUM_TICKETS, dtype = torch.bool)
         detectives_pos = {state.positions[d] for d in ('r', 'g', 'b', 'o', 'p')}
 
-        has_legal_moves = False
         for t, ticket in enumerate(self.TICKET_NAMES):
             if state.tickets[player][ticket] == 0:
                 continue
             for node in self.graph.get_reachable_neighbors_by_ticket(state, player, ticket):
-                if node not in detectives_pos and state.positions['x']:
-                    legal_mask[(node - 1) * self.NUM_TICKETS + t] = True
-                    has_legal_moves = True
+                if node not in detectives_pos:
+                    legal_mask[node - 1, t] = True
 
-        if has_legal_moves and state.can_use_double and state.tickets[player]['double']:
-            legal_mask[-1] = True
-
+        legal_mask = legal_mask.flatten()
         if not legal_mask.any():
             return [], value_output
 
         legal_mask = legal_mask.to(self.device)
-        outputs = policy_output.masked_fill(~legal_mask, float('-inf'))
+        outputs = policy_output.flatten()
+        outputs = outputs.masked_fill(~legal_mask, float('-inf'))
         probs = F.log_softmax(outputs, dim = 0)
 
         actions = []
@@ -135,35 +127,30 @@ class BaseXNet(nn.Module):
             for t, ticket in enumerate(self.TICKET_NAMES):
                 actions.append((node, ticket, probs[(node - 1) * self.NUM_TICKETS + t]))
 
-        actions.append((-1, 'double', probs[-1]))
-        
         return actions, value_output
 
 
     @torch.no_grad()
-    def get_action(self, state: State) -> tuple[str, int | None]:
+    def get_action(self, state: State, player: str) -> tuple[str, int | None]:
         """
         Get the best action for the detective the given state.
 
         Arguments:
             state: The current game state.
+            player: Which detective is playing ('r', 'g', 'b', 'o', or 'p').
 
         Returns:
             The chosen action by the net.
         """
 
-        distribution, _ = self.get_processed_output(state)
+        distribution, _ = self.get_processed_output(state, player)
         if len(distribution) == 0:
             return '', None
 
         probs = torch.stack([item[2] for item in distribution])
+        node, ticket, _ = distribution[probs.argmax().item()]
 
-        action_idx = probs.argmax().item()
-        if action_idx == probs.numel() - 1:
-            return 'double', None
-
-        node, ticket = divmod(action_idx, self.NUM_TICKETS)
-        return self.TICKET_NAMES[ticket], node + 1
+        return ticket, node
 
 
-__all__ = ['BaseXNet']
+__all__ = ['BaseDNet']

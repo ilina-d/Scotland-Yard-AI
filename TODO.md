@@ -23,12 +23,10 @@
 ---
 
 # Latest Changes
-Simulator implementation, trainer updates, and fixes.
-- Implemented Generalized Advantage Estimation in `DetectiveTrainer` and `MrXTrainer`.
-- Implemented `GreedyDetPlayer` that moves towards potential Mr. X positions when possible.
-- Implemented a multi-processed `Simulator` for faster win-rate comparisons.
-- `Graph` changes:
-  - Fixed potential Mr. X positions collapsing after Mr. X uses his last black ticket.
-  - Fixed incorrect double ticket index when building Mr. X GNN features.
-- Refactored GNN related files and class names.
+Added new candidate net structures and bug fixes.
+- Added new Detective and Mr. X nets.
+- Fixed sudden lr drop in custom scheduler function.
+- Fixed X being un-catchable in visual mode.
+- Fixed `ExplorerPlayer` not resetting seen nodes.
+- Fixed incorrect indexes in `BaseXNet.forward()`.
 - Updated TODO.

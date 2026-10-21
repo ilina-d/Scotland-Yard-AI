@@ -1,2 +1,5 @@
-from .base_detective_net import *
-from .detective_net_3layer import *
+from .base_dnet import *
+from .dnet_3l import *
+from .dnet_5l import *
+from .dnet_5lw import *
+from .dnet_5l_res import *

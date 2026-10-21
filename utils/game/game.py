@@ -106,7 +106,7 @@ class Game:
     def _get_reachable_nodes(self, player: str) -> dict[int, list[str]]:
         """ Helper function for getting reachable neighboring nodes. """
 
-        detectives_pos = [pos for det, pos in self.state.positions.items()]
+        detectives_pos = [pos for det, pos in self.state.positions.items() if det != 'x']
         reachable_nodes = {}
         for node in self.graph.get_reachable_neighbors_by_ticket(self.state, player, 'taxi'):
             if node in detectives_pos:

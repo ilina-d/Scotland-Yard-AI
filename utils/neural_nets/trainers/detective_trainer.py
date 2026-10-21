@@ -93,7 +93,7 @@ class DetectiveTrainer:
     @classmethod
     def train(cls, detective_net: BaseDNet, lr: float = 3e-4, wd: float = 1e-4, epochs: int = 10_000,
               opponent: BasePlayer = None, gamma: float = 0.995, value_coef: float = 0.5, entropy_coef: float = 0.003,
-              update_freq: str = 'per_game') -> None:
+              update_freq: str = 'per_game', warmup_perc: float = 0.02, plateau_perc: float = 0.18) -> None:
         """
         Train the Detective Net.
 
@@ -107,7 +107,9 @@ class DetectiveTrainer:
             value_coef: Weight of the value head loss.
             entropy_coef: Weight of the entropy bonus (encourages exploration).
             update_freq: How often weight updates occur when training
-                         (Options are: 'per_game', 'per_round' and 'per_reveal').
+                         (Options are: 'per_game', 'per_round' and 'per_show').
+            warmup_perc: The % of epochs that it takes to get to max lr.
+            plateau_perc: The % of epochs that train at max lr.
         """
 
         epoch_spaces = len(str(epochs))
@@ -118,16 +120,18 @@ class DetectiveTrainer:
         cls._training_logs = ''
         cls._log(f'{detective_net.__class__.__name__} Structure Details:\n{detective_net}\n\n')
 
-        steps_per_episode = {'per_game': 1, 'per_reveal': 5, 'per_round': 24}[update_freq]
+        steps_per_episode = {'per_game': 1, 'per_show': 5, 'per_round': 24}[update_freq]
         total_steps = epochs * steps_per_episode
-        warmup, final_frac, plateau = 200, 0.1, int(0.3 * total_steps)
+        warmup_end = int(warmup_perc * total_steps)
+        plateau_end = int((warmup_perc + plateau_perc) * total_steps)
+        final_frac = 0.1
 
         def lr_lambda(step):
-            if step < warmup:
-                return (step + 1) / warmup
-            if step < plateau:
+            if step < warmup_end:
+                return (step + 1) / warmup_end
+            if step < plateau_end:
                 return 1.0
-            progress = min(1.0, (step - warmup) / max(1, total_steps - warmup))
+            progress = min(1.0, (step - plateau_end) / max(1, total_steps - plateau_end))
             return 1.0 - (1.0 - final_frac) * progress
 
         optimizer = optim.AdamW(detective_net.parameters(), lr = lr, weight_decay = wd)

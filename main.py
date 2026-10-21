@@ -14,7 +14,7 @@ from utils.players import \
 from utils.neural_nets.trainers import MrXTrainer, DetectiveTrainer
 
 from utils.neural_nets.detective_nets import DNet3L
-from utils.neural_nets.mrx_nets import XNet3L
+from utils.neural_nets.mrx_nets import XNet3L, XNet5LRes
 
 
 # Things to train:

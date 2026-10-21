@@ -1,7 +1,7 @@
 from torch import nn
 from torch.nn import ModuleList, ReLU, Linear, Tanh
 from torch_geometric.nn import RGCNConv
-from .base_mrx_net import BaseXNet
+from .base_xnet import BaseXNet
 
 
 class XNet3L(BaseXNet):

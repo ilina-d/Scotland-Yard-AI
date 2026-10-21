@@ -1,7 +1,7 @@
 from torch import nn
 from torch.nn import ModuleList, ReLU, Linear, Tanh
 from torch_geometric.nn import RGCNConv
-from .base_detective_net import BaseDNet
+from .base_dnet import BaseDNet
 
 
 class DNet3L(BaseDNet):

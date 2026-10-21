@@ -1,2 +1,5 @@
-from .base_mrx_net import *
-from .mrx_net_3layer import *
+from .base_xnet import *
+from .xnet_3l import *
+from .xnet_5l import *
+from .xnet_5lw import *
+from .xnet_5l_res import *
