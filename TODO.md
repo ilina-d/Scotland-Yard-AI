@@ -1,6 +1,4 @@
 # TODO
-- Implement a greedy Detective player that moves towards the closest potential Mr. X position.
-- Implement a greedy Mr. X that runs away.
 - Implement scripted players that occasionally make bad or random moves for training purposes.
 - Try training `per_game` first and `per_show` after the critic gets good, but give +1 or -1 rewards at the end of the segment.
 - Visual-related changes:
@@ -23,10 +21,8 @@
 ---
 
 # Latest Changes
-Added new candidate net structures and bug fixes.
-- Added new Detective and Mr. X nets.
-- Fixed sudden lr drop in custom scheduler function.
-- Fixed X being un-catchable in visual mode.
-- Fixed `ExplorerPlayer` not resetting seen nodes.
-- Fixed incorrect indexes in `BaseXNet.forward()`.
+Greedy player updates.
+- `GreedyPlayer` now supports both detectives and Mr. X.
+- Improved detective logic in `GreedyPlayer`.
+- `Graph.get_reachable_neighbors()` now supports `from_node` argument.
 - Updated TODO.

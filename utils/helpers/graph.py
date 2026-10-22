@@ -417,13 +417,15 @@ class Graph:
         return list(self.routes[ticket][player_station]) if player_station in self.routes[ticket] else []
 
 
-    def get_reachable_neighbors(self, state: State, player: str) -> list[int]:
+    def get_reachable_neighbors(self, state: State, player: str, from_node: int = None) -> list[int]:
         """
         Get reachable neighboring stations based on the player's remaining tickets.
 
         Arguments:
             state: The current game state.
             player: The player name ('x', 'r', 'g', 'b', 'o', 'p').
+            from_node: The node to use as the player's current position.
+                       If not specified, the player's real position will be used.
 
         Returns:
             The reachable neighboring stations.
@@ -432,7 +434,7 @@ class Graph:
         nodes = set()
         for ticket, remaining in state.tickets[player].items():
             if remaining != 0 and ticket != 'double':
-                nodes.update(self.get_reachable_neighbors_by_ticket(state, player, ticket))
+                nodes.update(self.get_reachable_neighbors_by_ticket(state, player, ticket, from_node = from_node))
 
         return list(nodes)
 
